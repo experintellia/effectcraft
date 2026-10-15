@@ -2,6 +2,9 @@
 
 EffectCraft is a clean-room, open-source, pure-Rust motion graphics and visual effects compositor targeting Adobe After Effects parity (and beyond). Native on macOS, Windows, Linux; web via WASM. Sibling of `../photocraft` (Photoshop), `../pdfcraft` (Acrobat), `../vectorcraft` (Illustrator), `../filmcraft` (Premiere), `../lightcraft` (Lightroom) and `../designcraft` (InDesign), with the same conventions.
 
+## This fork (experintellia/effectcraft)
+This checkout is the fork `experintellia/effectcraft`, not upstream `storytold/effectcraft`. Its default branch is `webxdc` (EffectCraft as a webxdc app; `packaging/webxdc/package.sh`). **Open pull requests (against `webxdc`) and issues on the fork. Never write anything to `storytold/*`.** Full rule: [`AGENTS.md`](AGENTS.md) §0, which outranks everything below.
+
 ## Start every session here
 `plan/` is maintainer-local (gitignored). Public equivalents: [`ROADMAP.md`](ROADMAP.md), [`docs/`](docs/).
 1. Read `plan/STATUS.md` (current milestone, next task, running agents, blockers).
