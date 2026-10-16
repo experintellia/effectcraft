@@ -1,5 +1,13 @@
 # Releasing EffectCraft
 
+> **This fork (`experintellia/effectcraft`, branch `webxdc`) releases only the webxdc app.** The
+> native release workflows (`release.yml`, `windows-arm64.yml`, `freebsd.yml`) are removed here.
+> `.github/workflows/release-webxdc.yml` builds `packaging/webxdc/package.sh` and attaches
+> `effectcraft.xdc` to a GitHub Release: push a `v*` tag (released under that tag), or run it by
+> hand (released under `v<Cargo.toml version>`). `.github/workflows/webxdc-preview.yml` builds a
+> preview `effectcraft.xdc` for every pull request. The rest of this page describes upstream's
+> native pipeline.
+
 Every push to the `release` branch runs [`.github/workflows/release.yml`](../.github/workflows/release.yml).
 It builds signed installers for macOS and Windows, packages for Linux and FreeBSD, and the web
 build, then creates or updates a
