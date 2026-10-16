@@ -207,6 +207,10 @@ fn thumb_texture(app: &mut EffectcraftApp, ctx: &egui::Context, path: &str) -> O
 
 /// Width of the Home screen's left rail.
 const RAIL_W: f32 = 236.0;
+/// Below this width the Home screen lays out for a phone.
+const NARROW_W: f32 = 640.0;
+/// The rail when it shows icons only.
+const RAIL_ICONS_W: f32 = 52.0;
 
 /// Draw the Home screen over `rect` (the whole workspace).
 pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
@@ -215,11 +219,14 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
     let p = ui.painter().with_clip_rect(rect);
     p.rect_filled(rect, 0.0, t.app_bg);
     let mut actions: Vec<(&str, serde_json::Value)> = vec![];
-    let rail = Rect::from_min_size(rect.min, vec2(RAIL_W.min(rect.width() * 0.4), rect.height()));
+    // A phone's width (the webxdc app): the rail shrinks to icons, the margins to 16.
+    let narrow = rect.width() < NARROW_W;
+    let rail = Rect::from_min_size(rect.min, vec2(if narrow { RAIL_ICONS_W } else { RAIL_W.min(rect.width() * 0.4) }, rect.height()));
     p.rect_filled(rail, 0.0, t.panel_bg);
     p.line_segment([rail.right_top(), rail.right_bottom()], Stroke::new(1.0, t.separator));
     rail_ui(app, ui, &p, rail, &mut actions);
-    let main = Rect::from_min_max(pos2(rail.max.x + 40.0, rect.min.y + 32.0), pos2(rect.max.x - 40.0, rect.max.y - 16.0));
+    let margin = if narrow { 16.0 } else { 40.0 };
+    let main = Rect::from_min_max(pos2(rail.max.x + margin, rect.min.y + 32.0), pos2(rect.max.x - margin, rect.max.y - 16.0));
     if app.ui.home_learn {
         super::learn::home_tab(app, ui, main);
     } else if app.ui.home_templates {
@@ -233,12 +240,19 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
 /// The left rail: New / Open Project, the pages, and the community links at its foot.
 fn rail_ui(app: &mut EffectcraftApp, ui: &mut egui::Ui, p: &egui::Painter, rail: Rect, actions: &mut Vec<(&'static str, serde_json::Value)>) {
     let t = app.tokens;
+    let icons_only = rail.width() <= RAIL_ICONS_W;
     let x0 = rail.min.x + 16.0;
     let w = rail.width() - 32.0;
     let mut y = rail.min.y + 20.0;
-    for (label, id, primary) in [("New Project", "file.newProject", true), ("Open Project…", "file.open", false)] {
-        let r = Rect::from_min_size(pos2(x0, y), vec2(w, 34.0));
-        if widgets::text_button(ui, r, tr(label), primary, &t, egui::Id::new(("home", id))).clicked() {
+    for (label, id, primary, icon) in [("New Project", "file.newProject", true, Icon::Plus), ("Open Project…", "file.open", false, Icon::Folder)] {
+        let (r, clicked) = if icons_only {
+            let r = Rect::from_min_size(pos2(rail.min.x + 8.0, y), vec2(36.0, 34.0));
+            (r, widgets::icon_button(ui, r, icon, primary, &t, egui::Id::new(("home", id))).on_hover_text(tr(label)).clicked())
+        } else {
+            let r = Rect::from_min_size(pos2(x0, y), vec2(w, 34.0));
+            (r, widgets::text_button(ui, r, tr(label), primary, &t, egui::Id::new(("home", id))).clicked())
+        };
+        if clicked {
             actions.push((id, json!({})));
         }
         app.auto.add(&format!("home.{id}"), r, label);
@@ -262,13 +276,19 @@ fn rail_ui(app: &mut EffectcraftApp, ui: &mut egui::Ui, p: &egui::Painter, rail:
         }
         let col = if on { t.tab_text_active } else { t.text_dim };
         icons::paint(p, Rect::from_center_size(pos2(r.min.x + 20.0, r.center().y), vec2(16.0, 16.0)), icon, col);
-        p.text(pos2(r.min.x + 40.0, r.center().y), Align2::LEFT_CENTER, tr(label), Tokens::medium(13.0), col);
+        if !icons_only {
+            p.text(pos2(r.min.x + 40.0, r.center().y), Align2::LEFT_CENTER, tr(label), Tokens::medium(13.0), col);
+        }
         app.auto.add(&format!("home.tab.{}", label.to_ascii_lowercase()), r, label);
         if resp.clicked() {
             app.ui.home_learn = k == 2;
             app.ui.home_templates = k == 1;
         }
         y += 38.0;
+    }
+    // The Help menu and the header's Discord button carry the community links too.
+    if icons_only {
+        return;
     }
     // Community links at the foot (below the pages when the window is short).
     let links = [
@@ -347,9 +367,13 @@ fn home_page(
         ("New from Template", "templates", Icon::Grid),
     ];
     let gap = 12.0;
-    let tw = ((w - gap * 3.0) / 4.0).clamp(120.0, 220.0);
+    // Four in a row, or as many as fit at least 140 wide (two on a phone).
+    let cols = ((w + gap) / (140.0 + gap)).floor().clamp(1.0, 4.0);
+    let tw = ((w - gap * (cols - 1.0)) / cols).min(220.0);
+    let rows = (tiles.len() as f32 / cols).ceil();
     for (k, (label, id, icon)) in tiles.into_iter().enumerate() {
-        let r = Rect::from_min_size(pos2(x0 + k as f32 * (tw + gap), y), vec2(tw, 64.0));
+        let (col, row) = (k as f32 % cols, (k as f32 / cols).floor());
+        let r = Rect::from_min_size(pos2(x0 + col * (tw + gap), y + row * (64.0 + gap)), vec2(tw, 64.0));
         let resp = ui.interact(r, egui::Id::new(("home-tile", id)), Sense::click());
         p.rect_filled(r, 8.0, if resp.hovered() { t.hover } else { t.panel_bg });
         p.rect_stroke(r, 8.0, Stroke::new(1.0, if resp.hovered() { t.accent } else { t.separator }), StrokeKind::Inside);
@@ -367,18 +391,20 @@ fn home_page(
             }
         }
     }
-    y += 64.0 + 36.0;
+    y += rows * (64.0 + gap) - gap + 36.0;
 
     // Recent: heading, filter, clear.
     p.text(pos2(x0, y + 12.0), Align2::LEFT_CENTER, tr("Recent"), Tokens::semibold(17.0), t.tab_text_active);
     let entries = recent_entries(&app.session.prefs);
     let fid = egui::Id::new("home-filter");
     let mut filter: String = ctx.data(|d| d.get_temp(fid)).unwrap_or_default();
-    let fr = Rect::from_min_size(pos2(x0 + w - 240.0, y), vec2(240.0, 26.0));
+    let fw = (w - 90.0).min(240.0);
+    let fr = Rect::from_min_size(pos2(x0 + w - fw, y), vec2(fw, 26.0));
     widgets::search_field(ui, fr, &mut filter, tr("Filter recent files"), &t);
     app.auto.add("home.filter", fr, "Filter recent files");
     ctx.data_mut(|d| d.insert_temp(fid, filter.clone()));
-    if !entries.is_empty() {
+    // Clear list where it fits beside the heading (File ▸ Open Recent has it too).
+    if !entries.is_empty() && fr.min.x - 96.0 > x0 + 90.0 {
         let cr = Rect::from_min_size(pos2(fr.min.x - 96.0, y + 3.0), vec2(84.0, 20.0));
         let resp = ui.interact(cr, egui::Id::new("home-clear-recent"), Sense::click());
         p.text(cr.right_center(), Align2::RIGHT_CENTER, tr("Clear list"), Tokens::ui(11.5), if resp.hovered() { t.text } else { t.text_faint });
@@ -389,8 +415,11 @@ fn home_page(
     }
     y += 42.0;
     // Column headings (Name / Opened / Size / Kind, as in After Effects).
-    let (opened_x, size_x, kind_x) = (x0 + w * 0.52, x0 + w * 0.68, x0 + w * 0.80);
-    for (label, x) in [("NAME", x0 + 76.0), ("OPENED", opened_x), ("SIZE", size_x), ("KIND", kind_x)] {
+    // Too narrow for the other columns (a phone): names only.
+    let names_only = w < 480.0;
+    let (opened_x, size_x, kind_x) = if names_only { (x0 + w + 12.0, x0 + w, x0 + w) } else { (x0 + w * 0.52, x0 + w * 0.68, x0 + w * 0.80) };
+    let columns = [("NAME", x0 + 76.0), ("OPENED", opened_x), ("SIZE", size_x), ("KIND", kind_x)];
+    for (label, x) in columns.into_iter().take(if names_only { 1 } else { 4 }) {
         p.text(pos2(x, y), Align2::LEFT_CENTER, tr(label), Tokens::medium(10.5), t.text_faint);
     }
     y += 12.0;
@@ -408,7 +437,9 @@ fn home_page(
             ("No recent files match the filter", "Try another name or folder.")
         };
         p.text(c + vec2(0.0, 40.0), Align2::CENTER_CENTER, tr(head), Tokens::semibold(14.0), t.text);
-        p.text(c + vec2(0.0, 62.0), Align2::CENTER_CENTER, tr(sub), Tokens::ui(12.0), t.text_faint);
+        // Wrapped, centred: on a phone the line is wider than the page.
+        let g = p.layout(tr(sub).to_string(), Tokens::ui(12.0), t.text_faint, w);
+        p.galley(c + vec2(-g.size().x / 2.0, 54.0), g, t.text_faint);
     }
     let now = web_time::SystemTime::now().duration_since(web_time::UNIX_EPOCH).map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX));
     let row_h = 48.0;
@@ -451,9 +482,11 @@ fn home_page(
                 t.text_dim,
             );
         };
-        cell(opened_x, size_x, e.modified_secs.map(|m| format_ago(now, m)).unwrap_or_else(|| "—".into()));
-        cell(size_x, kind_x, e.size.map(format_size).unwrap_or_else(|| "—".into()));
-        cell(kind_x, r.max.x, kind_of(&e.path).to_string());
+        if !names_only {
+            cell(opened_x, size_x, e.modified_secs.map(|m| format_ago(now, m)).unwrap_or_else(|| "—".into()));
+            cell(size_x, kind_x, e.size.map(format_size).unwrap_or_else(|| "—".into()));
+            cell(kind_x, r.max.x, kind_of(&e.path).to_string());
+        }
         app.auto.add(&format!("home.recent.{}", e.index), r, &e.path);
         if resp.clicked() {
             actions.push(("file.openRecent", json!({"index": e.index})));

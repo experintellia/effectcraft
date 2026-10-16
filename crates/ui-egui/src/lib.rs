@@ -173,7 +173,30 @@ pub struct Hooks {
     /// Tells the user the graphics device was lost and the window is closing, once. `saved` is
     /// the auto-save of unsaved changes (`None`: nothing was unsaved), its path or why it failed.
     pub device_lost: Option<Box<dyn Fn(Option<Result<String, String>>)>>,
+    /// Commands the host can't run (in a messenger: saving to disk, scripts, watch folders,
+    /// revealing files). Menus leave them out and [`menus::invoke`] refuses them.
+    pub hidden_commands: &'static [&'static str],
 }
+
+/// The commands a webxdc host hides ([`Hooks::hidden_commands`]): in a messenger's sandbox the
+/// project lives in the app's storage, not in files on a disk, and there are no scripts, watch
+/// folders, file managers or quitting.
+pub const WEBXDC_HIDDEN: &[&str] = &[
+    "file.save",
+    "file.saveAs",
+    "file.saveCopy",
+    "file.saveCopyAsXml",
+    "file.incrementAndSave",
+    "file.revert",
+    "file.revealInFinder",
+    "file.watchFolder",
+    "file.installScript",
+    "file.installScriptUIPanel",
+    "file.runScript",
+    "window.scriptPanel",
+    "help.revealLogFile",
+    "app.quit",
+];
 
 impl Hooks {
     /// The host's save dialog for `default` (a file name or path), offering its extension: the
