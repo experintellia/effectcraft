@@ -4,7 +4,7 @@
 //!   listed same-layer edges, no UI/OS crates below L5).
 //! - `wasm`: `cargo check --target wasm32-unknown-unknown` for every crate in L0–L4, the egui UI
 //!   and the web app.
-//! - `web [--dev] [--serve PORT]`: build the web app (`apps/effectcraft-web`) into
+//! - `web [--dev|--small] [--serve PORT]`: build the web app (`apps/effectcraft-web`) into
 //!   `<target>/web/dist` with `wasm-bindgen` (docs/web.md); `--serve` serves it on localhost.
 //! - `assets`: every asset file (image, icon, font, LUT, audio, video…) has a complete
 //!   `<file>.attribution` sidecar and an entry in `ATTRIBUTION.md` (AGENTS.md §1).
@@ -261,8 +261,16 @@ fn target_dir() -> std::path::PathBuf {
 /// Build the web app into `<target>/web/dist` (see docs/web.md).
 fn web(args: &[String]) -> Result<(), String> {
     let dev = args.iter().any(|a| a == "--dev");
+    // `--small`: the size-optimized profile the webxdc package ships.
+    let small = args.iter().any(|a| a == "--small");
     let serve = args.iter().position(|a| a == "--serve").map(|i| args.get(i + 1).and_then(|p| p.parse::<u16>().ok()).unwrap_or(8765));
-    let profile = if dev { "dev" } else { "release" };
+    let profile = if dev {
+        "dev"
+    } else if small {
+        "wasm-size"
+    } else {
+        "release"
+    };
     let mut build = Command::new(env!("CARGO"));
     build.args(["build", "--target", "wasm32-unknown-unknown", "-p", "effectcraft-web", "--profile", profile]);
     run(&mut build)?;
@@ -277,7 +285,7 @@ fn web(args: &[String]) -> Result<(), String> {
             v.trim()
         ));
     }
-    let dir = if dev { "debug" } else { "release" };
+    let dir = if dev { "debug" } else { profile };
     let wasm = target_dir().join("wasm32-unknown-unknown").join(dir).join("effectcraft_web.wasm");
     let dist = target_dir().join("web").join("dist");
     let _ = std::fs::remove_dir_all(&dist);
@@ -435,7 +443,7 @@ fn main() -> ExitCode {
             let rest: Vec<String> = std::env::args().skip(2).collect();
             version::run(&root(), &rest.iter().map(String::as_str).collect::<Vec<_>>())
         }
-        _ => Err("usage: cargo xtask <layers|assets|pdf-deps|wasm|web [--dev] [--serve PORT]|ico OUT.ico IN.png…|version [set X.Y.Z]|ci|bench [--bin CLI] [--quick] [--project F --comp C] [--compare OLD.jsonl] (--help)>".into()),
+        _ => Err("usage: cargo xtask <layers|assets|pdf-deps|wasm|web [--dev|--small] [--serve PORT]|ico OUT.ico IN.png…|version [set X.Y.Z]|ci|bench [--bin CLI] [--quick] [--project F --comp C] [--compare OLD.jsonl] (--help)>".into()),
     };
     match r {
         Ok(()) => ExitCode::SUCCESS,

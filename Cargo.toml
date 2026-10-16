@@ -210,5 +210,12 @@ opt-level = 3
 lto = "thin"
 codegen-units = 1
 
+# The webxdc build (`cargo xtask web --small`, packaging/webxdc): ~15% smaller gzipped wasm than
+# release, rendering somewhat slower.
+[profile.wasm-size]
+inherits = "release"
+opt-level = "s"
+lto = "fat"
+
 [patch.crates-io]
 hayro-syntax = { git = "https://github.com/storytold/craft-libs", rev = "ca50d63b773c99f96e75c77ce5a1d21e7c9cda0d", version = "=0.7.2" }
