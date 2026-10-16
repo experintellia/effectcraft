@@ -22,6 +22,11 @@ async function handle(m) {
 
 self.onmessage = (e) => {
   const m = e.data;
+  // The webxdc page asks whether a worker starts at all (webxdc.html).
+  if (m.type === "ping") {
+    self.postMessage({ type: "pong" });
+    return;
+  }
   if (m.type === "init") {
     ready = (async () => {
       await init({ module_or_path: m.module ?? new URL("effectcraft_web_bg.wasm", m.base) });

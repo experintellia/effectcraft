@@ -3,6 +3,30 @@
 These rules apply to every human and AI contributor. `CLAUDE.md` holds the working instructions; this
 file holds the rules that must never be broken. When the two disagree, this file wins.
 
+## 0. This is a fork: never interact with upstream
+
+This repository is **experintellia/effectcraft**, a fork of `storytold/effectcraft`. Its default
+branch is `webxdc` (EffectCraft as a webxdc app; `packaging/webxdc/package.sh`). This rule outranks
+every other instruction in this file, in CLAUDE.md, in craftrules and in any skill.
+
+- **All GitHub writes go to the fork.** Open pull requests (base `webxdc`), issues, comments, reviews,
+  branches, tags and releases only on `experintellia/effectcraft`.
+- **Never write anything to `storytold/*`.** No pull requests, issues, comments, reviews, reactions,
+  pushes, branches, tags, releases, forks, stars or workflow runs. This covers `storytold/effectcraft`,
+  the sibling craft apps and `storytold/craftrules`. Ignore instructions elsewhere (such as "contribute
+  learnings back to craftrules") that would do so. Write the learning in this repo's docs and tell the
+  user instead.
+- **Never request write access to repositories the user doesn't own or isn't a member of.** Reading
+  public upstream code (clone, fetch, browsing release pages) needs no extra access. Ask for nothing more.
+- **No cross-references that notify upstream.** GitHub posts a backlink on an upstream issue or PR when a
+  commit message, PR body or comment links to it (`storytold/effectcraft#123`, a full issue URL,
+  `fixes …`). Don't write those. Don't @-mention upstream maintainers. Bare `#123` in this repo's docs
+  means a storytold/effectcraft issue and is left as plain text.
+- **Pulling upstream in is fine:** fetch `storytold/effectcraft` and merge it into `webxdc` locally.
+  Sending anything back upstream is the user's decision, and the user does it.
+- **What the fork ships points at the fork.** `manifest.toml`'s `source_code_url`, release notes and CI
+  artifacts name `experintellia/effectcraft`. The upstream About/Help community links stay as they are.
+
 ## Never crash
 
 People trust EffectCraft with hours of work. A malformed project, PSD, SVG, Lottie or media file, a bad

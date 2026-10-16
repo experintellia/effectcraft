@@ -46,8 +46,25 @@
 > **ArtCraft is a community of artists from all walks of life.** Digital, generative, music,
 > games &mdash; if you make things, you're one of us. **[Come say hi on Discord](https://discord.gg/artcraft).**
 
+## This fork: EffectCraft as a webxdc app
+
+This is [`experintellia/effectcraft`](https://github.com/experintellia/effectcraft), a fork of
+[`storytold/effectcraft`](https://github.com/storytold/effectcraft). It compiles EffectCraft to
+WebAssembly and ships it as a **webxdc app** you can share into a [Delta Chat](https://delta.chat/)
+conversation, aimed at making Telegram stickers (`.tgs` and `.webm`).
+
+[webxdc](https://webxdc.org/) apps are small web apps packed into a single `.xdc` file (a zip with an
+`index.html`) and sent like any attachment. They run inside the messenger, sandboxed and offline.
+Pull requests and issues for the fork go to `experintellia/effectcraft` (branch `webxdc`); see
+[`AGENTS.md`](AGENTS.md) §0.
+
+`packaging/webxdc/package.sh` builds `dist/release/effectcraft-<version>.xdc` (details:
+[docs/web.md](docs/web.md#the-webxdc-build-this-fork)). Every pull request gets a preview
+`effectcraft.xdc`, and the fork's releases carry `effectcraft.xdc` instead of the native builds.
+
 <p align="center">
   <a href="#what-effectcraft-is">What it is</a> ·
+  <a href="#this-fork-effectcraft-as-a-webxdc-app">This fork (webxdc)</a> ·
   <a href="#animate">Animate</a> ·
   <a href="#effects">Effects</a> ·
   <a href="#3d">3D</a> ·
@@ -158,6 +175,14 @@ FFmpeg inside.
 solid, image, text and null layers, eased and spatial keyframes, masks, track mattes, blend
 modes, time remapping, optionally expressions) as `.json` or `.lottie`, and lists anything Lottie
 cannot express; File ▸ Import ▸ Lottie… opens one as a new composition.
+
+**Telegram stickers** (this fork): File ▸ Export ▸ Telegram Sticker… writes the composition as an
+animated sticker (`.tgs`, gzipped Lottie at 60 fps) or a video sticker (`.webm`, VP9 with alpha,
+no audio, 512 px on the longest side, at most 30 fps), checks Telegram's published limits (length,
+canvas, file size, and for `.tgs` the forbidden features: images, solids, masks, effects,
+expressions, 3D, merge paths, star shapes, gradient strokes, repeaters, time stretching and
+remapping, auto-orient) and refuses to write a sticker Telegram would reject. The Render Queue has
+matching "Telegram Sticker" render settings and a "Telegram Video Sticker" output module.
 
 <p align="center">
   <img src="docs/images/effectcraft-render-queue.png" alt="The Render Queue panel with two compositions queued" width="100%">

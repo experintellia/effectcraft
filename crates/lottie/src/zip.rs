@@ -1,7 +1,7 @@
 //! A minimal ZIP writer (stored entries, PKWARE APPNOTE 6.3 local headers + central directory)
 //! for `.lottie` (dotLottie) archives.
 
-fn crc32(data: &[u8]) -> u32 {
+pub(crate) fn crc32(data: &[u8]) -> u32 {
     let mut crc = 0xFFFF_FFFFu32;
     for &b in data {
         crc ^= b as u32;

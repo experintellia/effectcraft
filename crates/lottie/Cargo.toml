@@ -18,6 +18,7 @@ effectcraft-path = { workspace = true }
 effectcraft-text = { workspace = true }
 effectcraft-effects = { workspace = true }
 kurbo = { workspace = true }
+miniz_oxide = "0.8"
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 

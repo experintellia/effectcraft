@@ -59,16 +59,18 @@ pub fn home_tab(app: &mut EffectcraftApp, ui: &mut egui::Ui, area: Rect) {
     let p = ui.painter().with_clip_rect(area);
     let (x, y, w) = (area.min.x, area.min.y, area.width());
     p.text(pos2(x, y + 6.0), Align2::LEFT_CENTER, crate::i18n::tr("New from Template"), Tokens::semibold(16.0), Color32::WHITE);
-    p.text(
-        pos2(x, y + 26.0),
-        Align2::LEFT_CENTER,
-        "Start from a ready-made project. Opening a template makes an untitled copy.",
-        Tokens::ui(11.5),
-        t.text_faint,
-    );
+    // A phone's width: the intro wraps and the save button goes below it.
+    let narrow = w < 480.0;
+    let g = p.layout("Start from a ready-made project. Opening a template makes an untitled copy.".into(), Tokens::ui(11.5), t.text_faint, w);
+    let intro_h = g.size().y;
+    p.galley(pos2(x, y + 19.0), g, t.text_faint);
     // Save the open project as a user template.
     let can_save = app.session.project.comps().next().is_some();
-    let sr = Rect::from_min_size(pos2(area.max.x - 210.0, y - 4.0), vec2(210.0, 28.0));
+    let sr = if narrow {
+        Rect::from_min_size(pos2(x, y + 28.0 + intro_h), vec2(210.0f32.min(w), 28.0))
+    } else {
+        Rect::from_min_size(pos2(area.max.x - 210.0, y - 4.0), vec2(210.0, 28.0))
+    };
     let save = widgets::text_button(ui, sr, "Save Current as Template…", false, &t, egui::Id::new("home-templates-save")).clicked();
     app.auto.add("home.templates.saveCurrent", sr, "Save Current as Template…");
     if save {
@@ -81,7 +83,7 @@ pub fn home_tab(app: &mut EffectcraftApp, ui: &mut egui::Ui, area: Rect) {
         }
     }
     let list = entries(app);
-    let top = y + 46.0;
+    let top = if narrow { sr.max.y + 12.0 } else { y + 32.0 + intro_h };
     let gap = 16.0;
     let card_w = 220.0f32.min(w);
     let cols = (((w + gap) / (card_w + gap)).floor() as usize).max(1);

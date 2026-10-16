@@ -1,0 +1,75 @@
+<!doctype html>
+<!-- The page of the webxdc build (packaging/webxdc/package.sh ships it as index.html): no service
+     worker, no app manifest, and the wasm stored gzipped. web/index.html is the web build's page. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>EffectCraft</title>
+  <!-- The webxdc API, provided by the messenger (never packaged). -->
+  <script src="webxdc.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #1b1c1f; }
+    canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; }
+    #loading {
+      position: absolute; inset: 0; display: flex; flex-direction: column; gap: 14px;
+      align-items: center; justify-content: center; color: #c9c9cc;
+      font: 14px/1.4 system-ui, sans-serif; pointer-events: none;
+    }
+    #loading img { width: 56px; height: 56px; }
+    #loading .err { color: #ff8a7a; white-space: pre-wrap; max-width: 70ch; pointer-events: auto; }
+  </style>
+</head>
+<body>
+  <canvas id="effectcraft_canvas"></canvas>
+  <div id="loading"><img src="icon.png" alt=""><div id="status">Loading EffectCraft…</div></div>
+  <script type="module">
+    import init, * as ec from "./effectcraft_web.js";
+    const t0 = performance.now();
+    window.effectcraftLoad = {};
+    // The agent / test API (docs/web.md), as on the web build.
+    window.effectcraft = {
+      request: (method, params) => ec.request(method, params ?? {}),
+      execute: (command, params) => ec.request("engine.execute", { command, params: params ?? {} }),
+      commands: () => ec.request("engine.commands", {}),
+      inspect: () => ec.request("ui.inspect", {}),
+      screenshot: (params) => ec.request("ui.screenshot", params ?? {}),
+      files: () => ec.files(),
+      readFile: (path) => ec.readFile(path),
+      info: () => ({ ...ec.info(), webgpu: !!navigator.gpu, load: window.effectcraftLoad }),
+    };
+    // Workers may not load inside a messenger's webview: without one, frames and jobs run on the
+    // page's thread (?noworkers). A worker answers once its script loaded.
+    const workers = new Promise((res) => {
+      try {
+        const w = new Worker("worker.js", { type: "module" });
+        const done = (ok) => { w.terminate(); res(ok); };
+        w.onmessage = () => done(true);
+        w.onerror = () => done(false);
+        w.postMessage({ type: "ping" });
+        setTimeout(() => done(false), 10000);
+      } catch { res(false); }
+    });
+    try {
+      // Stored gzipped (Delta Chat inflates zip entries slowly); the browser gunzips it while
+      // compiling. Compiled once: the page and its workers instantiate the same module.
+      // ponytail: needs DecompressionStream (Chrome 80, Safari 16.4, Firefox 113); no fallback.
+      const res = await fetch("effectcraft_web_bg.wasm.gz");
+      const wasm = new Response(res.body.pipeThrough(new DecompressionStream("gzip")), { headers: { "content-type": "application/wasm" } });
+      const module = await WebAssembly.compileStreaming(wasm);
+      window.effectcraftModule = module;
+      await init({ module_or_path: module });
+      if (!(window.effectcraftLoad.workers = await workers)) history.replaceState(null, "", "?noworkers");
+      window.effectcraftLoad.wasmMs = performance.now() - t0;
+      await ec.start("effectcraft_canvas");
+      window.effectcraftLoad.readyMs = performance.now() - t0;
+    } catch (e) {
+      const s = document.getElementById("status");
+      if (s) { s.className = "err"; s.textContent = "EffectCraft failed to start:\n" + (e && e.stack || e); }
+      window.effectcraftLoad.error = String(e);
+      throw e;
+    }
+  </script>
+</body>
+</html>

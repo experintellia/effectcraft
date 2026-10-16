@@ -1,0 +1,64 @@
+# Builds the webxdc app (packaging/webxdc/package.sh) and attaches it to a GitHub Release as
+# `effectcraft.xdc`. A pushed `v*` tag releases under that tag; a manual run releases under
+# `v<Cargo.toml version>`. An existing release gets its effectcraft.xdc replaced.
+name: Release webxdc
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-webxdc-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  xdc:
+    # A manual run releases only from the webxdc branch, never from an unreviewed branch.
+    if: github.ref_type == 'tag' || github.ref == 'refs/heads/webxdc'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: "0"
+      BINARYEN_VERSION: "123"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Rust (stable + wasm32)
+        run: |
+          rustup toolchain install stable --profile minimal --target wasm32-unknown-unknown
+          rustup default stable
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - name: Install wasm-bindgen and wasm-opt
+        run: |
+          v="$(sed -n 's/^const WASM_BINDGEN: &str = "\(.*\)";$/\1/p' xtask/src/main.rs)"
+          cargo install wasm-bindgen-cli --version "$v" --locked
+          curl -fsSL "https://github.com/WebAssembly/binaryen/releases/download/version_${BINARYEN_VERSION}/binaryen-version_${BINARYEN_VERSION}-x86_64-linux.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/binaryen-version_${BINARYEN_VERSION}/bin" >> "$GITHUB_PATH"
+
+      - name: Build effectcraft.xdc
+        run: |
+          packaging/webxdc/package.sh
+          . packaging/env.sh
+          cp "$DIST/effectcraft-$VERSION.xdc" effectcraft.xdc
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Publish to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then TAG="$GITHUB_REF_NAME"; else TAG="v$VERSION"; fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" effectcraft.xdc --clobber
+          else
+            gh release create "$TAG" effectcraft.xdc --target "$GITHUB_SHA" \
+              --title "EffectCraft $TAG (webxdc)" \
+              --notes "EffectCraft as a webxdc app: send effectcraft.xdc to a Delta Chat chat to make animated stickers."
+          fi
