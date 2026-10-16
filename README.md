@@ -61,6 +61,10 @@ conversation, aimed at making Telegram stickers (`.tgs` and `.webm`).
 Pull requests and issues for the fork go to `experintellia/effectcraft` (branch `webxdc`); see
 [`AGENTS.md`](AGENTS.md) §0.
 
+`packaging/webxdc/package.sh` builds `dist/release/effectcraft-<version>.xdc` (details:
+[docs/web.md](docs/web.md#the-webxdc-build-this-fork)). Every pull request gets a preview
+`effectcraft.xdc`, and the fork's releases carry `effectcraft.xdc` instead of the native builds.
+
 <p align="center">
   <a href="#what-effectcraft-is">What it is</a> ·
   <a href="#this-fork-effectcraft-as-a-webxdc-app">This fork (webxdc)</a> ·
