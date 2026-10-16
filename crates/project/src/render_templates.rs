@@ -9,7 +9,22 @@
 use serde::{Deserialize, Serialize};
 
 use crate::render_queue::*;
-use effectcraft_time::FrameRate;
+use effectcraft_time::{FrameRate, Tick};
+
+/// Telegram video stickers (core.telegram.org/stickers): VP9 WebM without audio, 512 px on the
+/// longest side, at most 3 s, 30 fps and 256 KB.
+pub const TELEGRAM_STICKER_SIZE: u32 = 512;
+pub const TELEGRAM_MAX_SECONDS: f64 = 3.0;
+pub const TELEGRAM_VIDEO_FPS: i64 = 30;
+pub const TELEGRAM_VIDEO_MAX_BYTES: u64 = 256 * 1024;
+
+/// VP9 target bitrate (kbit/s, per stream: colour and alpha each get it) that keeps a `seconds`
+/// long video sticker inside [`TELEGRAM_VIDEO_MAX_BYTES`], leaving 15 % for the container and
+/// rate-control overshoot.
+pub fn telegram_video_kbps(seconds: f64) -> u32 {
+    let bits = TELEGRAM_VIDEO_MAX_BYTES as f64 * 8.0 * 0.85;
+    (bits / seconds.clamp(0.1, TELEGRAM_MAX_SECONDS) / 2.0 / 1000.0).floor() as u32
+}
 
 /// A default slot (the Defaults section of the Templates dialogs).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -134,7 +149,13 @@ pub fn builtin_render_settings() -> Vec<RenderSettings> {
         guide_layers: CurrentOrOff::Current,
         ..RenderSettings::default()
     };
-    vec![best, draft, dv, multi, current]
+    let telegram = RenderSettings {
+        name: "Telegram Sticker".into(),
+        frame_rate: Some(FrameRate::new(TELEGRAM_VIDEO_FPS, 1)),
+        max_duration: Some(Tick::from_seconds_f64(TELEGRAM_MAX_SECONDS)),
+        ..best.clone()
+    };
+    vec![best, draft, dv, multi, current, telegram]
 }
 
 fn om(name: &str, format: OutputFormat) -> OutputModule {
@@ -188,7 +209,23 @@ pub fn builtin_output_modules() -> Vec<OutputModule> {
     let mut wa = om("WebM with Alpha", OutputFormat::WebM);
     wa.channels = Channels::Rgba;
     v.push(wa);
+    v.push(telegram_video_sticker());
     v
+}
+
+/// Output Module "Telegram Video Sticker": VP9 + straight alpha, no audio, bitrate sized for
+/// 3 s in 256 KB, resized to fit 512×512.
+pub fn telegram_video_sticker() -> OutputModule {
+    let mut m = om("Telegram Video Sticker", OutputFormat::WebM);
+    m.webm_codec = WebmVideoCodec::Vp9;
+    m.channels = Channels::Rgba;
+    m.alpha_mode = AlphaMode::Straight;
+    m.audio = AudioOutput::Off;
+    m.webm_bitrate = true;
+    m.bitrate_kbps = telegram_video_kbps(TELEGRAM_MAX_SECONDS);
+    let s = TELEGRAM_STICKER_SIZE;
+    m.resize = Resize { enabled: true, width: s, height: s, lock_aspect: true, fit: true, quality: ResizeQuality::High };
+    m
 }
 
 fn same(a: &str, b: &str) -> bool {
@@ -290,10 +327,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn telegram_sticker_templates_fit_512_and_cap_three_seconds() {
+        let t = RenderTemplates::default();
+        let rs = t.render_settings("Telegram Sticker").unwrap();
+        let om = t.output_module("Telegram Video Sticker").unwrap();
+        assert_eq!((om.format, om.channels, om.audio, om.webm_bitrate), (OutputFormat::WebM, Channels::Rgba, AudioOutput::Off, true));
+        // Both streams at the bitrate fill 85 % of 256 KB in 3 s.
+        let bytes = om.bitrate_kbps as f64 * 1000.0 / 8.0 * 2.0 * 3.0;
+        assert!(bytes < 0.86 * TELEGRAM_VIDEO_MAX_BYTES as f64 && bytes > 0.8 * TELEGRAM_VIDEO_MAX_BYTES as f64, "{bytes}");
+        for ((w, h), want) in [((1920, 1080), (512, 288)), ((1080, 1920), (288, 512)), ((100, 100), (512, 512))] {
+            let c = crate::Comp::new(w, h, FrameRate::new(24, 1), Tick::from_seconds_f64(10.0));
+            assert_eq!(om.output_size(&c, &rs), want, "{w}x{h}");
+            assert_eq!(rs.frame_count(&c), 90, "3 s at 30 fps");
+        }
+    }
+
+    #[test]
     fn builtins_defaults_and_round_trip() {
         let mut t = RenderTemplates::default();
         let names: Vec<String> = t.render_settings_list().into_iter().map(|s| s.name).collect();
-        assert_eq!(names, ["Best Settings", "Draft Settings", "DV Settings", "Multi-Machine Settings", "Current Settings"]);
+        assert_eq!(names, ["Best Settings", "Draft Settings", "DV Settings", "Multi-Machine Settings", "Current Settings", "Telegram Sticker"]);
         assert_eq!(t.default_render_settings(TemplateSlot::Movie).name, "Best Settings");
         assert_eq!(t.default_output_module(TemplateSlot::PreRender).channels, Channels::Rgba);
         let dv = t.render_settings("dv settings").unwrap();

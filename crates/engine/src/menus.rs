@@ -552,6 +552,7 @@ File
     Add to Render Queue | renderQueue.add
     Adobe Premiere Pro Project... | file.exportTimeline
     Lottie JSON... | file.exportLottie
+    Telegram Sticker... | file.exportTelegramSticker
     Essential Graphics Template... | essential.exportTemplate
   ---
   Find | app.find
