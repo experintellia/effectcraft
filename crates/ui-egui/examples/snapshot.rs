@@ -4,7 +4,7 @@
 //!
 //! ```text
 //! cargo run -p effectcraft-ui-egui --example snapshot -- [--out ui.png] [--size 1680x1020]
-//!     [--scale 2] [--settle 1.5] [--empty] [--script steps.jsonl | --step '<json>']...
+//!     [--scale 2] [--settle 1.5] [--empty] [--webxdc] [--script steps.jsonl | --step '<json>']...
 //! ```
 //!
 //! Each script step is a control-channel request (`{"method":"engine.execute","params":{...}}`,
@@ -25,11 +25,12 @@ struct Args {
     scale: f32,
     settle: f64,
     demo: bool,
+    webxdc: bool,
     steps: Vec<Value>,
 }
 
 fn parse_args() -> Result<Args, String> {
-    let mut a = Args { out: "ui.png".into(), size: (1680.0, 1020.0), scale: 2.0, settle: 1.5, demo: true, steps: Vec::new() };
+    let mut a = Args { out: "ui.png".into(), size: (1680.0, 1020.0), scale: 2.0, settle: 1.5, demo: true, webxdc: false, steps: Vec::new() };
     let mut it = std::env::args().skip(1);
     while let Some(arg) = it.next() {
         let mut val = || it.next().ok_or_else(|| format!("{arg} needs a value"));
@@ -43,6 +44,7 @@ fn parse_args() -> Result<Args, String> {
             "--scale" => a.scale = val()?.parse().map_err(|_| "bad --scale")?,
             "--settle" => a.settle = val()?.parse().map_err(|_| "bad --settle")?,
             "--empty" => a.demo = false,
+            "--webxdc" => a.webxdc = true,
             "--step" => a.steps.push(serde_json::from_str(&val()?).map_err(|e| format!("--step: {e}"))?),
             "--script" => {
                 let path = val()?;
@@ -52,7 +54,9 @@ fn parse_args() -> Result<Args, String> {
                 }
             }
             "-h" | "--help" => {
-                return Err("usage: snapshot [--out ui.png] [--size WxH] [--scale 2] [--settle secs] [--empty] [--script f.jsonl | --step json]...".into());
+                return Err(
+                    "usage: snapshot [--out ui.png] [--size WxH] [--scale 2] [--settle secs] [--empty] [--webxdc] [--script f.jsonl | --step json]...".into()
+                );
             }
             _ => return Err(format!("unknown argument {arg}")),
         }
@@ -98,12 +102,16 @@ fn main() {
     if args.demo {
         let _ = session.execute("file.openDemoProject", json!({}));
     }
+    let webxdc = args.webxdc;
     let (tx, rx) = mpsc::channel::<ControlRequest>();
-    let mut harness = Harness::builder()
-        .with_size(egui::vec2(args.size.0, args.size.1))
-        .with_pixels_per_point(args.scale)
-        .wgpu()
-        .build_eframe(move |_cc| EffectcraftApp::new(session).with_control(rx));
+    let mut harness = Harness::builder().with_size(egui::vec2(args.size.0, args.size.1)).with_pixels_per_point(args.scale).wgpu().build_eframe(move |_cc| {
+        let mut app = EffectcraftApp::new(session).with_control(rx);
+        // `--webxdc`: the webxdc build's menus.
+        if webxdc {
+            app.hooks.hidden_commands = effectcraft_ui_egui::WEBXDC_HIDDEN;
+        }
+        app
+    });
     settle(&mut harness, args.settle);
     for step in &args.steps {
         let method = step["method"].as_str().unwrap_or_default().to_string();

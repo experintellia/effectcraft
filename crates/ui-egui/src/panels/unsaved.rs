@@ -91,17 +91,21 @@ pub fn show(app: &mut EffectcraftApp, ctx: &egui::Context, t: &Tokens) {
         return;
     }
     let revert = is_revert(app);
+    // A host without saving (webxdc) can only discard or cancel.
+    let can_save = !app.hooks.hidden_commands.contains(&"file.save");
     let name = project_name(app);
     let mut answer = None;
     let title = if revert { "Revert Project" } else { "Unsaved Changes" };
     super::dialogs::modal(ctx, title, vec2(460.0, 170.0), t, |ui| {
         let text = if revert {
             format!("Revert “{name}” to the last saved version? Changes made since then will be lost.")
-        } else {
+        } else if can_save {
             format!("Save changes to “{name}” before closing?")
+        } else {
+            format!("Discard the changes to “{name}”?")
         };
         ui.label(egui::RichText::new(text).color(t.tab_text_active));
-        if !revert {
+        if !revert && can_save {
             ui.add_space(4.0);
             ui.label(egui::RichText::new(tr("Your changes will be lost if you don't save them.")).color(t.text_dim).size(11.0));
         }
@@ -109,10 +113,12 @@ pub fn show(app: &mut EffectcraftApp, ctx: &egui::Context, t: &Tokens) {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let (label, key) = if revert { ("  Revert  ", "dialog.unsaved.revert") } else { ("   Save   ", "dialog.unsaved.save") };
             // Revert discards work: red, like Delete.
-            let r = ui.add(egui::Button::new(egui::RichText::new(label).color(Color32::WHITE)).fill(if revert { t.danger } else { t.accent }));
-            app.auto.add(key, r.rect, label.trim());
-            if r.clicked() {
-                answer = Some(if revert { Answer::Discard } else { Answer::Save });
+            if revert || can_save {
+                let r = ui.add(egui::Button::new(egui::RichText::new(label).color(Color32::WHITE)).fill(if revert { t.danger } else { t.accent }));
+                app.auto.add(key, r.rect, label.trim());
+                if r.clicked() {
+                    answer = Some(if revert { Answer::Discard } else { Answer::Save });
+                }
             }
             let r = ui.button(tr("Cancel"));
             app.auto.add("dialog.unsaved.cancel", r.rect, "Cancel");
@@ -135,7 +141,7 @@ pub fn show(app: &mut EffectcraftApp, ctx: &egui::Context, t: &Tokens) {
     }
     // Enter is Save, the default button; Cmd+Backspace (Ctrl elsewhere) is Don't Save, as in
     // macOS save prompts. Revert discards work, so it takes neither: Cmd+R.
-    if answer.is_none() && !revert && super::dialogs::ui_enter(ctx) {
+    if answer.is_none() && !revert && can_save && super::dialogs::ui_enter(ctx) {
         answer = Some(Answer::Save);
     }
     let discard = if revert { egui::Key::R } else { egui::Key::Backspace };
