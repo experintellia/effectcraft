@@ -26,6 +26,7 @@ mod export;
 mod import;
 mod shapes;
 mod text;
+mod tgs;
 pub mod zip;
 
 use effectcraft_color::BlendMode;
@@ -33,6 +34,7 @@ use effectcraft_time::{FrameRate, TICKS_PER_SECOND, Tick};
 
 pub use export::{ExportOptions, ExportResult, export_comp, to_dotlottie};
 pub use import::{ImportResult, ImportedImage, import};
+pub use tgs::{TGS_MAX_BYTES, tgs_problems, to_tgs};
 
 #[derive(Debug, thiserror::Error)]
 pub enum LottieError {

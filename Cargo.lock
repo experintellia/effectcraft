@@ -1379,6 +1379,7 @@ dependencies = [
  "gif",
  "image",
  "log",
+ "miniz_oxide 0.8.9",
  "rayon",
  "serde_json",
 ]
@@ -1427,6 +1428,7 @@ dependencies = [
  "effectcraft-text",
  "effectcraft-time",
  "kurbo",
+ "miniz_oxide 0.8.9",
  "serde_json",
  "thiserror 2.0.21",
 ]
