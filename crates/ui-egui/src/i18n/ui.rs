@@ -87,6 +87,14 @@ pub(crate) fn tr_args(text: &str, args: &[&dyn Display]) -> String {
 
 /// Japanese: the same rows, in the same order, as the Chinese catalogs below (the tests keep the two in step).
 const JAPANESE: &[(&str, &str)] = &[
+    ("Telegram Sticker", "Telegram ステッカー"),
+    ("Format:", "形式:"),
+    ("Animated (.tgs)", "アニメーション (.tgs)"),
+    ("Video (.webm)", "ビデオ (.webm)"),
+    ("Custom emoji (100×100)", "カスタム絵文字 (100×100)"),
+    ("Telegram checks", "Telegram のチェック"),
+    ("Ready: no Telegram limits are broken.", "準備完了：Telegram の制限を満たしています。"),
+    ("Export Anyway...", "このまま書き出し..."),
     ("Appearance Settings…", "外観設定…"),
     ("Add to favorites", "お気に入りに追加"),
     ("Remove from favorites", "お気に入りから削除"),
@@ -828,6 +836,14 @@ const JAPANESE: &[(&str, &str)] = &[
 ];
 
 const SIMPLIFIED_CHINESE: &[(&str, &str)] = &[
+    ("Telegram Sticker", "Telegram 贴纸"),
+    ("Format:", "格式："),
+    ("Animated (.tgs)", "动画 (.tgs)"),
+    ("Video (.webm)", "视频 (.webm)"),
+    ("Custom emoji (100×100)", "自定义表情 (100×100)"),
+    ("Telegram checks", "Telegram 检查"),
+    ("Ready: no Telegram limits are broken.", "就绪：符合 Telegram 的所有限制。"),
+    ("Export Anyway...", "仍然导出..."),
     ("Appearance Settings…", "外观设置…"),
     ("Add to favorites", "添加到收藏"),
     ("Remove from favorites", "从收藏中移除"),
@@ -1568,6 +1584,14 @@ const SIMPLIFIED_CHINESE: &[(&str, &str)] = &[
 ];
 
 const TRADITIONAL_CHINESE: &[(&str, &str)] = &[
+    ("Telegram Sticker", "Telegram 貼圖"),
+    ("Format:", "格式："),
+    ("Animated (.tgs)", "動畫 (.tgs)"),
+    ("Video (.webm)", "視訊 (.webm)"),
+    ("Custom emoji (100×100)", "自訂表情 (100×100)"),
+    ("Telegram checks", "Telegram 檢查"),
+    ("Ready: no Telegram limits are broken.", "就緒：符合 Telegram 的所有限制。"),
+    ("Export Anyway...", "仍然輸出..."),
     ("Appearance Settings…", "外觀設定…"),
     ("Add to favorites", "加入最愛"),
     ("Remove from favorites", "從最愛移除"),
@@ -2305,6 +2329,14 @@ const TRADITIONAL_CHINESE: &[(&str, &str)] = &[
 /// Ukrainian (uk): original translations of the same interface rows as the Chinese catalogs.
 /// Technical names, key names and substituted project content keep their original spelling.
 const UKRAINIAN: &[(&str, &str)] = &[
+    ("Telegram Sticker", "Стікер Telegram"),
+    ("Format:", "Формат:"),
+    ("Animated (.tgs)", "Анімований (.tgs)"),
+    ("Video (.webm)", "Відео (.webm)"),
+    ("Custom emoji (100×100)", "Власний емодзі (100×100)"),
+    ("Telegram checks", "Перевірки Telegram"),
+    ("Ready: no Telegram limits are broken.", "Готово: обмеження Telegram дотримано."),
+    ("Export Anyway...", "Експортувати все одно..."),
     ("Appearance Settings…", "Налаштування вигляду…"),
     ("Add to favorites", "Додати до вибраного"),
     ("Remove from favorites", "Видалити з вибраного"),
@@ -2879,6 +2911,14 @@ const UKRAINIAN: &[(&str, &str)] = &[
 
 // Brazilian Portuguese.
 const PORTUGUESE: &[(&str, &str)] = &[
+    ("Telegram Sticker", "Sticker do Telegram"),
+    ("Format:", "Formato:"),
+    ("Animated (.tgs)", "Animado (.tgs)"),
+    ("Video (.webm)", "Vídeo (.webm)"),
+    ("Custom emoji (100×100)", "Emoji personalizado (100×100)"),
+    ("Telegram checks", "Verificações do Telegram"),
+    ("Ready: no Telegram limits are broken.", "Pronto: nenhum limite do Telegram foi excedido."),
+    ("Export Anyway...", "Exportar mesmo assim..."),
     ("   OK   ", "   OK   "),
     ("  Delete  ", "  Excluir  "),
     (" Open Auto-Save ", " Abrir salvamento automático "),
@@ -3330,6 +3370,14 @@ const PORTUGUESE: &[(&str, &str)] = &[
 
 /// Czech (cs): original translations covering every row in the Chinese panel catalogs.
 const CZECH: &[(&str, &str)] = &[
+    ("Telegram Sticker", "Nálepka Telegram"),
+    ("Format:", "Formát:"),
+    ("Animated (.tgs)", "Animovaná (.tgs)"),
+    ("Video (.webm)", "Videonálepka (.webm)"),
+    ("Custom emoji (100×100)", "Vlastní emoji (100×100)"),
+    ("Telegram checks", "Kontroly Telegramu"),
+    ("Ready: no Telegram limits are broken.", "Připraveno: žádný limit Telegramu není překročen."),
+    ("Export Anyway...", "Přesto exportovat..."),
     ("   OK   ", "   OK   "),
     ("  Delete  ", "  Odstranit  "),
     (" Open Auto-Save ", " Otevřít automatickou zálohu "),
@@ -3885,6 +3933,14 @@ const CZECH: &[(&str, &str)] = &[
 /// ajuste preestablecido, método abreviado). Written from the English source.
 const SPANISH: &[(&str, &str)] = &[
     ("Copy Source Path", "Copiar ruta de origen"),
+    ("Telegram Sticker", "Sticker de Telegram"),
+    ("Format:", "Formato:"),
+    ("Animated (.tgs)", "Animado (.tgs)"),
+    ("Video (.webm)", "Vídeo (.webm)"),
+    ("Custom emoji (100×100)", "Emoji personalizado (100×100)"),
+    ("Telegram checks", "Comprobaciones de Telegram"),
+    ("Ready: no Telegram limits are broken.", "Listo: no se supera ningún límite de Telegram."),
+    ("Export Anyway...", "Exportar de todos modos..."),
     ("Appearance Settings…", "Ajustes de apariencia…"),
     ("Add to favorites", "Añadir a favoritos"),
     ("Remove from favorites", "Quitar de favoritos"),
@@ -4470,6 +4526,7 @@ mod tests {
         ("panels/home.rs", include_str!("../panels/home.rs")),
         ("panels/info.rs", include_str!("../panels/info.rs")),
         ("panels/key_dialogs.rs", include_str!("../panels/key_dialogs.rs")),
+        ("panels/sticker_dialog.rs", include_str!("../panels/sticker_dialog.rs")),
         ("panels/layer_panel.rs", include_str!("../panels/layer_panel.rs")),
         ("panels/layer_styles_dialog.rs", include_str!("../panels/layer_styles_dialog.rs")),
         ("panels/learn.rs", include_str!("../panels/learn.rs")),

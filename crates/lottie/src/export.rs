@@ -16,6 +16,9 @@ pub struct ExportOptions {
     pub include_expressions: bool,
     /// Export text layers as glyph shapes (exact look, no font needed) instead of text layers.
     pub text_as_shapes: bool,
+    /// Write the document at this frame rate instead of the composition's (keyframes keep their
+    /// times; Telegram stickers are 60 fps).
+    pub frame_rate: Option<effectcraft_time::FrameRate>,
 }
 
 /// An exported Lottie document and what could not be expressed.
@@ -301,7 +304,8 @@ impl Doc<'_> {
         let c = it.as_comp()?;
         self.done.insert(id.clone());
         let layers = self.layers(c);
-        self.assets.push(json!({"id": id, "nm": it.name, "fr": c.frame_rate.as_f64(), "w": c.width, "h": c.height, "layers": layers}));
+        self.assets
+            .push(json!({"id": id, "nm": it.name, "fr": self.opts.frame_rate.unwrap_or(c.frame_rate).as_f64(), "w": c.width, "h": c.height, "layers": layers}));
         Some(id)
     }
 
@@ -472,7 +476,7 @@ impl Doc<'_> {
 pub fn export_comp(project: &Project, comp: ItemId, opts: &ExportOptions, read: &dyn Fn(&str) -> Option<Vec<u8>>) -> Result<ExportResult, LottieError> {
     let item = project.item(comp).ok_or_else(|| LottieError::Invalid(format!("no item {}", comp.0)))?;
     let c = item.as_comp().ok_or_else(|| LottieError::Invalid(format!("`{}` is not a composition", item.name)))?;
-    let tb = Timebase { rate: c.frame_rate };
+    let tb = Timebase { rate: opts.frame_rate.unwrap_or(c.frame_rate) };
     let mut doc = Doc {
         project,
         opts,
@@ -488,7 +492,7 @@ pub fn export_comp(project: &Project, comp: ItemId, opts: &ExportOptions, read: 
     let markers: Vec<Json> = c.markers.iter().map(|m| json!({"tm": doc.frame(m.time), "cm": m.comment, "dr": doc.frame(m.duration)})).collect();
     let mut out = json!({
         "v": "5.12.0",
-        "fr": c.frame_rate.as_f64(),
+        "fr": tb.rate.as_f64(),
         "ip": 0,
         "op": doc.frame(c.duration),
         "w": c.width,

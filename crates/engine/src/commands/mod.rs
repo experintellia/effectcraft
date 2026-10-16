@@ -64,6 +64,7 @@ pub mod shape_stroke;
 pub mod shape_tool;
 mod stubs;
 mod styles;
+mod telegram;
 mod text_anim;
 pub mod text_edit;
 mod three_d;
@@ -200,6 +201,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(relink::specs());
         v.extend(relink_moved::specs());
         v.extend(lottie::specs());
+        v.extend(telegram::specs());
         v.extend(import_project::specs());
         v.extend(timeline::specs());
         v.extend(comp_more::specs());

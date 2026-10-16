@@ -1,6 +1,6 @@
 # File format parity
 
-> **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-12 · **Change:** minor (closed issue references re-audited against `upstream/main` 470ea7a3) · **Target:** Adobe After Effects 2026
+> **Last reviewed:** 2026-10-12 · **Last updated:** 2026-10-15 · **Change:** minor (Telegram sticker export, fork) · **Target:** Adobe After Effects 2026
 
 Every format After Effects reads or writes, with EffectCraft's support. After Effects' list comes
 from its installed bundle (26.5.0.89: `Info.plist` `CFBundleDocumentTypes`, `Plug-ins/Format`,
@@ -89,6 +89,7 @@ trips and renders, checked by tests, not against After Effects), **partial** (na
 |---|---|---|---|---|
 | Premiere Pro `.prproj` | R (import) | none | none | Out of clean-room scope pending a decision; we interchange through FCP7 XML, FCPXML, OTIO, EDL, AAF and OMF instead (beyond After Effects) |
 | Lottie JSON / dotLottie | via third-party plug-ins | yes | yes | beyond After Effects; a warnings list names what Lottie can't express |
+| Telegram stickers (`.tgs`, `.webm`) | via third-party plug-ins | no | yes | beyond After Effects (this fork): File ▸ Export ▸ Telegram Sticker… checks Telegram's limits before writing |
 | JSON / CSV / TSV data | R | yes (`footage()`, data layers) | — | good |
 | LUTs (`.cube`, `.3dl`, `.csp`, `.spi1d/3d`, CDL) | R | yes (Apply Color LUT, OCIO effects) | — | Apply Color LUT bug (#514) is closed |
 | OpenColorIO configs | R (OCIO 2.5.1, ACES 2.0 in 26.5) | yes (OCIO v2 subset, Blender configs) | — | partial: no ACES 2.0 output transforms |
@@ -115,5 +116,6 @@ relinking 6–12 h, `.mogrt`-compatible templates 15–30 h (partly parallel wit
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-15 | minor | Telegram sticker export (`.tgs`, `.webm`) added (fork) |
 | 2026-10-12 | minor | #324 and #514 marked closed; open `.aep` PRs #251 and #860 noted |
 | 2026-10-10 | major | First file format parity document, from the After Effects 26.5 bundle and this repository's import/export registries |

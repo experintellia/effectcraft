@@ -688,6 +688,14 @@ cannot express (most effects, cameras and lights, layer styles, audio, video foo
 agent can check what a player will not show. A `.lottie` path writes a dotLottie archive.
 `file.importLottie` returns `{comp, items, warnings}` and opens the new composition.
 
+`file.exportTelegramSticker {comp?, path, format?: tgs|webm, emoji?, force?, check?}` writes a
+Telegram sticker (format from `format`, else the path's extension, else `tgs`) and returns
+`{path, bytes, format, problems, warnings, written}`. `problems` are Telegram's hard limits (3 s,
+512×512 canvas or 100×100 with `emoji`, 64 KB `.tgs` / 256 KB `.webm`, and for `.tgs` the features
+Telegram forbids); while there are any the command writes nothing and fails listing them, unless
+`force` is set. `check: true` only reports. A `.webm` over 256 KB is re-encoded at a lower bitrate
+up to three times.
+
 Premiere Pro interop goes through timeline interchange (MCP: the `execute_command` tool; control channel: `engine.execute`
 with the same ids):
 
