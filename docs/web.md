@@ -376,6 +376,36 @@ cache-first (the cached responses keep the server's COOP/COEP headers, so the pa
 cross-origin isolated offline), and drops older caches when a new build activates. After the
 first visit the app loads without a network.
 
+## The webxdc build (this fork)
+
+`packaging/webxdc/package.sh` builds `dist/release/effectcraft-<version>.xdc`, a
+[webxdc](https://webxdc.org/) app for Delta Chat and other messengers. It is the web build with
+these differences:
+
+- **Its own page**, `apps/effectcraft-web/webxdc.html`, shipped as `index.html`. It loads the
+  messenger's `webxdc.js` (never packaged) and registers no service worker; the package has no
+  app manifest. A messenger serves the app from the `.xdc`, offline and without COOP/COEP headers
+  (so no `SharedArrayBuffer`, which the app doesn't need).
+- **The wasm is stored gzipped** (`effectcraft_web_bg.wasm.gz`, `zip -n .gz`) and the page gunzips
+  it with `DecompressionStream` while compiling: Delta Chat inflates zip entries slowly.
+- **Built for size**: `cargo xtask web --small` uses the `wasm-size` profile (`opt-level = "s"`,
+  fat LTO). Measured on v0.10.0: release 49.3 MB wasm, 17.7 MB gzipped, an 18 MB `.xdc`;
+  `wasm-size` 40.5 MB, 15.0 MB gzipped. `wasm-opt -Oz` instead of `-O2` saved only 0.7 %. The
+  raw wasm is mostly app code, embedded data (fonts, shaders, tables: 10.7 MB) and the
+  JavaScript engine expressions run on (boa, 4.8 MB); the video codecs a sticker app doesn't
+  need (AV1, HEVC, H.264, DNx, MPEG-2, ProRes, AC-3, AAC) are about 1.6 MB of it, PSD 0.1 MB, so
+  they stay in.
+- **Workers if they load.** The page asks `worker.js` to answer a ping while the wasm loads; if
+  no worker answers (a messenger's webview may not run workers from the package), the app
+  starts as `?noworkers`: viewer frames, Render Queue renders and analyses run on the page's
+  thread. The Telegram sticker export runs on the page either way. `effectcraft.info().load.workers`
+  says which. `audio-worklet.js` falls back to a `ScriptProcessorNode` on its own.
+- **No saving to disk.** The project lives in the app's browser storage (it comes back when the
+  app is reopened). The host hides the commands a messenger can't run (`Hooks::hidden_commands`):
+  Save, Save As and its variants, Increment and Save, Revert, Reveal in Finder, Watch Folder,
+  scripts and ScriptUI panels, Reveal Logging File and Quit. Menus leave them out and running one
+  is refused; the unsaved-changes prompt offers Don't Save and Cancel.
+
 ## `window.effectcraft`: the agent / test API
 
 The control channel of the desktop app (`docs/control-protocol.md`) as promises. Results resolve
