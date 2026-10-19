@@ -149,7 +149,7 @@ pub fn session() -> Session {
         config: Some(Arc::new(persist::config())),
         offload: (!query_flag("noworkers")).then(|| {
             // Job workers render on a WebGPU device of their own (`?nogpuworkers`: their CPU).
-            worker::set_job_worker_gpu(!query_flag("nogpuworkers"));
+            worker::set_job_worker_gpu(gpu_workers());
             Arc::new(worker::WorkerOffload) as Arc<dyn effectcraft_engine::offload::Offload>
         }),
         browser: Some(Arc::new(browse::WebBrowser)),
@@ -181,6 +181,13 @@ fn install_hooks(app: &mut EffectcraftApp) {
     if in_webxdc() {
         app.hooks.hidden_commands = effectcraft_ui_egui::WEBXDC_HIDDEN;
     }
+}
+
+/// Workers open a WebGPU device of their own, except with `?nogpuworkers` and in a messenger:
+/// there (Delta Chat desktop) a frame's GPU passes, each awaiting a readback, measured slower
+/// than rendering it on the worker's CPU.
+fn gpu_workers() -> bool {
+    !query_flag("nogpuworkers") && !in_webxdc()
 }
 
 /// Frame workers by default: a quarter of the CPU's threads, 2 to 6. A preview renders a frame
@@ -279,7 +286,7 @@ pub async fn start(canvas_id: String) -> Result<(), JsValue> {
                     query_value("frameworkers").and_then(|v| v.parse().ok()).unwrap_or_else(default_frame_workers).min(8)
                 };
                 if n > 0 {
-                    app.frames.set_remote(Some(Arc::new(frames::WebFrames::start(n, !query_flag("nogpuworkers")))));
+                    app.frames.set_remote(Some(Arc::new(frames::WebFrames::start(n, gpu_workers()))));
                 }
                 let (tx, rx) = std::sync::mpsc::channel();
                 api::set_sender(tx);
