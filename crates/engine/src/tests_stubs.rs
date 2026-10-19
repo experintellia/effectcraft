@@ -367,7 +367,7 @@ fn templates_save_apply_default_and_persist() {
     let (mut s, _) = rq();
     let t = s.execute("renderQueue.templates", json!({})).unwrap();
     let names: Vec<&str> = t["renderSettings"].as_array().unwrap().iter().map(|r| r["name"].as_str().unwrap()).collect();
-    assert_eq!(names, ["Best Settings", "Draft Settings", "DV Settings", "Multi-Machine Settings", "Current Settings"]);
+    assert_eq!(names, ["Best Settings", "Draft Settings", "DV Settings", "Multi-Machine Settings", "Current Settings", "Telegram Sticker"]);
     assert!(t["outputModules"].as_array().unwrap().iter().any(|m| m["name"] == "High Quality with Alpha"));
     assert_eq!(t["defaults"]["renderSettings"]["Movie"], "Best Settings");
     // A new item starts from the Movie defaults.

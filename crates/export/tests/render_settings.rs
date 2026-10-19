@@ -162,7 +162,7 @@ fn crop_roi_and_resize() {
     // Resize (fixed size, low and high quality) after the crop.
     om.crop = Crop::default();
     for q in [ResizeQuality::Low, ResizeQuality::High] {
-        om.resize = Resize { enabled: true, width: 32, height: 20, lock_aspect: false, quality: q };
+        om.resize = Resize { enabled: true, width: 32, height: 20, lock_aspect: false, fit: false, quality: q };
         let z = png(&run(&p, cid, &s, &om, "/c/resize_[#####].png"), 0);
         assert_eq!((z.width(), z.height()), (32, 20));
         // The red block (bottom left) survives the resize.

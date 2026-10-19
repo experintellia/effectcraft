@@ -741,6 +741,7 @@ pub fn invoke(app: &mut EffectcraftApp, ctx: &egui::Context, id: &str, params: V
         "keys.velocity" if no_params(&params) => crate::panels::key_dialogs::open_velocity(app)?,
         "keys.interpolation" if no_params(&params) => crate::panels::key_dialogs::open_interpolation(app)?,
         "layer.timeStretch" if no_params(&params) => crate::panels::key_dialogs::open_time_stretch(app)?,
+        "file.exportTelegramSticker" if no_params(&params) => crate::panels::sticker_dialog::open(app)?,
         _ => {
             if id == "renderQueue.render" && params.get("wait").is_none() {
                 // The UI renders in the background; the panel shows progress.
@@ -1347,6 +1348,9 @@ fn file_dialog(app: &mut EffectcraftApp, id: &str, params: &Value) -> Option<Res
         "view.exportGuides" => ("path", Ask::Save("Guides.json")),
         "view.importGuides" => ("path", Ask::Open(&["json"])),
         "file.exportLottie" => ("path", Ask::Save("Animation.json")),
+        "file.exportTelegramSticker" if params.get("check").is_none() => {
+            ("path", Ask::Save(if params.get("format").and_then(Value::as_str) == Some("webm") { "Sticker.webm" } else { "Sticker.tgs" }))
+        }
         "file.importLottie" => ("path", Ask::Open(&["json", "lottie"])),
         "file.importProject" => ("path", Ask::Open(&["ecproj", "ecprojx"])),
         "file.importTimeline" => ("path", Ask::Open(&["xml", "fcpxml", "otio", "edl", "aaf", "omf"])),

@@ -172,6 +172,14 @@ solid, image, text and null layers, eased and spatial keyframes, masks, track ma
 modes, time remapping, optionally expressions) as `.json` or `.lottie`, and lists anything Lottie
 cannot express; File ▸ Import ▸ Lottie… opens one as a new composition.
 
+**Telegram stickers** (this fork): File ▸ Export ▸ Telegram Sticker… writes the composition as an
+animated sticker (`.tgs`, gzipped Lottie at 60 fps) or a video sticker (`.webm`, VP9 with alpha,
+no audio, 512 px on the longest side, at most 30 fps), checks Telegram's published limits (length,
+canvas, file size, and for `.tgs` the forbidden features: images, solids, masks, effects,
+expressions, 3D, merge paths, star shapes, gradient strokes, repeaters, time stretching and
+remapping, auto-orient) and refuses to write a sticker Telegram would reject. The Render Queue has
+matching "Telegram Sticker" render settings and a "Telegram Video Sticker" output module.
+
 <p align="center">
   <img src="docs/images/effectcraft-render-queue.png" alt="The Render Queue panel with two compositions queued" width="100%">
 </p>

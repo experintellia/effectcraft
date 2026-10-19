@@ -357,6 +357,9 @@ pub struct RenderSettings {
     /// folders.
     #[serde(default = "default_true")]
     pub storage_overflow: bool,
+    /// Longest span to render: the time span is cut to this length (Telegram stickers: 3 s).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_duration: Option<Tick>,
 }
 
 impl Default for RenderSettings {
@@ -379,6 +382,7 @@ impl Default for RenderSettings {
             skip_existing: false,
             proxy_use: ProxyUse::UseNone,
             storage_overflow: true,
+            max_duration: None,
         }
     }
 }
@@ -415,7 +419,10 @@ impl RenderSettings {
             TimeSpan::Custom { start, end } => (start, end),
         };
         let a = a.clamp(Tick::ZERO, comp.duration);
-        let b = b.clamp(a, comp.duration);
+        let mut b = b.clamp(a, comp.duration);
+        if let Some(m) = self.max_duration {
+            b = b.min(Tick(a.0.saturating_add(m.0.max(0))));
+        }
         (a, b)
     }
     /// The output frame rate: the Frame Rate override, unless the comp preserves its frame rate
@@ -798,12 +805,16 @@ pub struct Resize {
     pub height: u32,
     /// Lock Aspect Ratio: setting one dimension derives the other from the rendered frame.
     pub lock_aspect: bool,
+    /// Scale the frame, keeping its aspect, to the largest size that fits `width`×`height`
+    /// (overrides `lock_aspect`).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub fit: bool,
     pub quality: ResizeQuality,
 }
 
 impl Default for Resize {
     fn default() -> Self {
-        Resize { enabled: false, width: 1920, height: 1080, lock_aspect: true, quality: ResizeQuality::High }
+        Resize { enabled: false, width: 1920, height: 1080, lock_aspect: true, fit: false, quality: ResizeQuality::High }
     }
 }
 
@@ -1100,7 +1111,11 @@ impl OutputModule {
             return (cw, ch);
         }
         let (mut rw, mut rh) = (self.resize.width.max(1), self.resize.height.max(1));
-        if self.resize.lock_aspect {
+        if self.resize.fit {
+            let k = (rw as f64 / cw as f64).min(rh as f64 / ch as f64);
+            rw = ((cw as f64 * k).round() as u32).clamp(1, rw);
+            rh = ((ch as f64 * k).round() as u32).clamp(1, rh);
+        } else if self.resize.lock_aspect {
             // Width rules; height follows the cropped frame's aspect.
             rh = ((rw as f64 * ch as f64 / cw as f64).round() as u32).max(1);
         }
@@ -1610,7 +1625,7 @@ mod tests {
         assert_eq!(m.output_size(&c, &rs), (1920, 1100));
         // Resize: fixed, and with the aspect locked to the (cropped) frame.
         m.crop = Crop::default();
-        m.resize = Resize { enabled: true, width: 1280, height: 999, lock_aspect: false, quality: ResizeQuality::High };
+        m.resize = Resize { enabled: true, width: 1280, height: 999, lock_aspect: false, fit: false, quality: ResizeQuality::High };
         assert_eq!(m.output_size(&c, &rs), (1280, 999));
         m.resize.lock_aspect = true;
         assert_eq!(m.output_size(&c, &rs), (1280, 720));
