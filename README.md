@@ -46,8 +46,21 @@
 > **ArtCraft is a community of artists from all walks of life.** Digital, generative, music,
 > games &mdash; if you make things, you're one of us. **[Come say hi on Discord](https://discord.gg/artcraft).**
 
+## This fork: EffectCraft as a webxdc app
+
+This is [`experintellia/effectcraft`](https://github.com/experintellia/effectcraft), a fork of
+[`storytold/effectcraft`](https://github.com/storytold/effectcraft). It compiles EffectCraft to
+WebAssembly and ships it as a **webxdc app** you can share into a [Delta Chat](https://delta.chat/)
+conversation, aimed at making Telegram stickers (`.tgs` and `.webm`).
+
+[webxdc](https://webxdc.org/) apps are small web apps packed into a single `.xdc` file (a zip with an
+`index.html`) and sent like any attachment. They run inside the messenger, sandboxed and offline.
+Pull requests and issues for the fork go to `experintellia/effectcraft` (branch `webxdc`); see
+[`AGENTS.md`](AGENTS.md) §0.
+
 <p align="center">
   <a href="#what-effectcraft-is">What it is</a> ·
+  <a href="#this-fork-effectcraft-as-a-webxdc-app">This fork (webxdc)</a> ·
   <a href="#animate">Animate</a> ·
   <a href="#effects">Effects</a> ·
   <a href="#3d">3D</a> ·
