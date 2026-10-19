@@ -183,6 +183,13 @@ fn install_hooks(app: &mut EffectcraftApp) {
     }
 }
 
+/// Frame workers by default: a quarter of the CPU's threads, 2 to 6. A preview renders a frame
+/// per worker at a time, on the worker's CPU where workers have no WebGPU.
+fn default_frame_workers() -> usize {
+    let threads = web_sys::window().map_or(0.0, |w| w.navigator().hardware_concurrency());
+    ((threads as usize) / 4).clamp(2, 6)
+}
+
 /// Running as a webxdc app (packaging/webxdc): the messenger's `webxdc.js` defines `window.webxdc`.
 fn in_webxdc() -> bool {
     web_sys::window().is_some_and(|w| js_sys::Reflect::has(&w, &JsValue::from_str("webxdc")).unwrap_or(false))
@@ -249,6 +256,11 @@ pub async fn start(canvas_id: String) -> Result<(), JsValue> {
                     let _ = session.execute("file.openDemoProject", json!({}));
                 }
                 api::set_info("restored", json!(restored));
+                // In a messenger frames often render on the CPU (no WebGPU): scrubbing and
+                // dragging show lower-resolution frames until the pointer is released.
+                if in_webxdc() {
+                    session.state.viewer.fast_previews = effectcraft_engine::commands::viewer_cmds::FastPreviews::AdaptiveResolution;
+                }
                 // The ScriptUI panels open on the last visit open again.
                 let _ = session.execute("window.restoreScriptPanels", json!({}));
                 let mut app = EffectcraftApp::new(session);
@@ -261,7 +273,11 @@ pub async fn start(canvas_id: String) -> Result<(), JsValue> {
                 // Viewer frames render in frame workers (`?frameworkers=N`, 0 or `?noworkers`:
                 // on the page's thread), each on its own WebGPU device where the browser has
                 // WebGPU in workers (`?nogpuworkers`: their CPU).
-                let n = if query_flag("noworkers") { 0 } else { query_value("frameworkers").and_then(|v| v.parse().ok()).unwrap_or(2usize).min(8) };
+                let n = if query_flag("noworkers") {
+                    0
+                } else {
+                    query_value("frameworkers").and_then(|v| v.parse().ok()).unwrap_or_else(default_frame_workers).min(8)
+                };
                 if n > 0 {
                     app.frames.set_remote(Some(Arc::new(frames::WebFrames::start(n, !query_flag("nogpuworkers")))));
                 }

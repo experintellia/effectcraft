@@ -1756,6 +1756,11 @@ pub fn show(app: &mut EffectcraftApp, ui: &mut egui::Ui, rect: Rect) {
         let tt = Tick::from_seconds_f64(secs);
         app.session.set_time(tt);
         app.stop();
+        // Scrubbing is interacting: Fast Previews ▸ Adaptive Resolution renders the frames at a
+        // lower resolution until the button is released.
+        if rresp.dragged() {
+            app.ui.viewer.property_interacting = true;
+        }
         // Dragged past either edge of the ruler (over the layer outline, say), the view scrolls so
         // the current time indicator stays in sight (After Effects).
         if app.ui.timeline.pps.is_some() {
