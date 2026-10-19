@@ -402,9 +402,9 @@ these differences:
   says which. `audio-worklet.js` falls back to a `ScriptProcessorNode` on its own.
 - **Faster previews without a GPU.** In a messenger frames often render on the CPU (no WebGPU),
   so Fast Previews ▸ Adaptive Resolution is on: frames render at half size while scrubbing or
-  dragging, and at full size once the pointer is released. Workers render on their CPU
-  (as with `?nogpuworkers`): in Delta Chat desktop that measured faster than their own WebGPU
-  device, whose frames take several passes, each awaiting a readback.
+  dragging, and at full size once the pointer is released. A worker declines a software
+  fallback WebGPU adapter (SwiftShader, where Chromium blocklists the GPU, e.g. ARM GPUs on
+  Linux) and renders on its CPU: in Delta Chat desktop that measured faster.
 - **No saving to disk.** The project lives in the app's browser storage (it comes back when the
   app is reopened). The host hides the commands a messenger can't run (`Hooks::hidden_commands`):
   Save, Save As and its variants, Increment and Save, Revert, Reveal in Finder, Watch Folder,

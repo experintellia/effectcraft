@@ -183,11 +183,10 @@ fn install_hooks(app: &mut EffectcraftApp) {
     }
 }
 
-/// Workers open a WebGPU device of their own, except with `?nogpuworkers` and in a messenger:
-/// there (Delta Chat desktop) a frame's GPU passes, each awaiting a readback, measured slower
-/// than rendering it on the worker's CPU.
+/// Workers open a WebGPU device of their own unless `?nogpuworkers` (a software fallback
+/// adapter is declined: `GpuContext::request`).
 fn gpu_workers() -> bool {
-    !query_flag("nogpuworkers") && !in_webxdc()
+    !query_flag("nogpuworkers")
 }
 
 /// Frame workers by default: a quarter of the CPU's threads, 2 to 6. A preview renders a frame
