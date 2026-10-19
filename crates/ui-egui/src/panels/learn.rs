@@ -15,18 +15,23 @@ pub fn home_tab(app: &mut EffectcraftApp, ui: &mut egui::Ui, area: Rect) {
     let p = ui.painter().with_clip_rect(area);
     let (x, mut y, w) = (area.min.x, area.min.y, area.width());
     p.text(pos2(x, y + 6.0), Align2::LEFT_CENTER, tr("Learn"), Tokens::semibold(16.0), Color32::WHITE);
-    p.text(
-        pos2(x, y + 26.0),
-        Align2::LEFT_CENTER,
-        "Hands-on tutorials that run inside EffectCraft. Do each step yourself, or press Show me.",
-        Tokens::ui(11.5),
-        t.text_faint,
-    );
-    y += 44.0;
+    let g = p.layout("Hands-on tutorials that run inside EffectCraft. Do each step yourself, or press Show me.".into(), Tokens::ui(11.5), t.text_faint, w);
+    let intro_h = g.size().y;
+    p.galley(pos2(x, y + 19.0), g, t.text_faint);
+    y += 30.0 + intro_h;
+    // A phone's width: Start goes below the text instead of beside it.
+    let narrow = w < 480.0;
     let tutorials = effectcraft_engine::learn::tutorials();
     let running = app.session.learn.as_ref().map(|l| l.tutorial.clone());
-    let card_h = 128.0;
     for tut in &tutorials {
+        let tx = x + 76.0;
+        let text_w = if narrow { x + w - tx - 16.0 } else { (x + w - tx - 120.0).max(120.0) };
+        let summary = p.layout(tut.summary.clone(), Tokens::ui(12.0), t.text_dim, text_w);
+        let steps: Vec<String> = tut.steps.iter().map(|s| s.title.clone()).collect();
+        let steps = p.layout(steps.join("  ·  "), Tokens::ui(10.5), t.text_faint, text_w);
+        // As tall as its text (wrapped narrow, it takes more lines).
+        let text_bottom = 52.0 + summary.size().y + 6.0 + steps.size().y;
+        let card_h = (text_bottom + if narrow { 44.0 } else { 16.0 } + 10.0).max(128.0);
         let r = Rect::from_min_size(pos2(x, y), vec2(w, card_h - 10.0));
         if r.min.y > area.max.y {
             break;
@@ -39,16 +44,16 @@ pub fn home_tab(app: &mut EffectcraftApp, ui: &mut egui::Ui, area: Rect) {
         p.circle_stroke(badge.center(), 22.0, Stroke::new(1.5, t.accent));
         p.text(badge.center() - vec2(0.0, 5.0), Align2::CENTER_CENTER, tut.steps.len().to_string(), Tokens::semibold(15.0), Color32::WHITE);
         p.text(badge.center() + vec2(0.0, 10.0), Align2::CENTER_CENTER, "steps", Tokens::ui(9.0), t.text_dim);
-        let tx = badge.max.x + 16.0;
         p.text(pos2(tx, r.min.y + 22.0), Align2::LEFT_CENTER, &tut.title, Tokens::semibold(14.0), Color32::WHITE);
         p.text(pos2(tx, r.min.y + 40.0), Align2::LEFT_CENTER, format!("{} min", tut.minutes), Tokens::ui(11.0), t.text_faint);
-        let text_w = (r.max.x - tx - 120.0).max(120.0);
-        let g = p.layout(tut.summary.clone(), Tokens::ui(12.0), t.text_dim, text_w);
-        p.galley(pos2(tx, r.min.y + 52.0), g, t.text_dim);
-        let steps: Vec<String> = tut.steps.iter().map(|s| s.title.clone()).collect();
-        let g = p.layout(steps.join("  ·  "), Tokens::ui(10.5), t.text_faint, text_w);
-        p.galley(pos2(tx, r.min.y + 84.0), g, t.text_faint);
-        let br = Rect::from_min_size(pos2(r.max.x - 104.0, r.min.y + 16.0), vec2(88.0, 28.0));
+        let summary_h = summary.size().y;
+        p.galley(pos2(tx, r.min.y + 52.0), summary, t.text_dim);
+        p.galley(pos2(tx, r.min.y + 58.0 + summary_h), steps, t.text_faint);
+        let br = if narrow {
+            Rect::from_min_size(pos2(tx, r.min.y + text_bottom + 8.0), vec2(88.0, 28.0))
+        } else {
+            Rect::from_min_size(pos2(r.max.x - 104.0, r.min.y + 16.0), vec2(88.0, 28.0))
+        };
         let label = if running.as_deref() == Some(tut.id.as_str()) { "Resume" } else { "Start" };
         let clicked = widgets::text_button(ui, br, label, true, &t, egui::Id::new(("learn-start", &tut.id))).clicked();
         app.auto.add(&format!("home.learn.{}", tut.id), r, &tut.title);

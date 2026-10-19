@@ -178,6 +178,14 @@ fn install_hooks(app: &mut EffectcraftApp) {
     app.hooks.pick_save = Some(Box::new(|name: &str| Some(files::path_for(if name.is_empty() { "Untitled Project.ecproj" } else { name }))));
     app.hooks.audio_device = Some(Box::new(audio::open));
     app.hooks.audio_devices = Some(Box::new(|| vec!["Browser default output".into()]));
+    if in_webxdc() {
+        app.hooks.hidden_commands = effectcraft_ui_egui::WEBXDC_HIDDEN;
+    }
+}
+
+/// Running as a webxdc app (packaging/webxdc): the messenger's `webxdc.js` defines `window.webxdc`.
+fn in_webxdc() -> bool {
+    web_sys::window().is_some_and(|w| js_sys::Reflect::has(&w, &JsValue::from_str("webxdc")).unwrap_or(false))
 }
 
 /// Entry point (called by the page's bootstrap script once the wasm module is instantiated).

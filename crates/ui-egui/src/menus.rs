@@ -291,6 +291,9 @@ fn only_comp(p: &Value) -> Option<effectcraft_engine::project::ItemId> {
 
 /// Execute a UI or engine command by id.
 pub fn invoke(app: &mut EffectcraftApp, ctx: &egui::Context, id: &str, params: Value) -> Result<Value, String> {
+    if app.hooks.hidden_commands.contains(&id) {
+        return Err(format!("{id} is not available here"));
+    }
     if id == "effects.copyPresetsFolderPath" {
         return frontend(app, ctx, id, params);
     }
@@ -2022,11 +2025,22 @@ fn menu_nodes(
     nav: &mut crate::menu_keys::Nav,
     depth: usize,
 ) {
+    // A separator draws only between shown entries (hidden ones could leave two in a row).
+    let (mut drawn, mut sep) = (false, false);
     for n in nodes {
+        if matches!(n, MenuNode::Separator) {
+            sep = drawn;
+            continue;
+        }
+        if !shown(app, n) {
+            continue;
+        }
+        if std::mem::take(&mut sep) {
+            ui.separator();
+        }
+        drawn = true;
         match n {
-            MenuNode::Separator => {
-                ui.separator();
-            }
+            MenuNode::Separator => {}
             MenuNode::Dynamic { name } => {
                 // Recent projects / footage / presets, undo history, shortcut slots, viewers,
                 // saved workspaces.
@@ -2039,6 +2053,9 @@ fn menu_nodes(
                     ui.add_enabled(false, egui::Button::new((gutter(false), e)));
                 }
                 for (i, e) in entries.iter().enumerate() {
+                    if app.hooks.hidden_commands.contains(&e.command.as_str()) {
+                        continue;
+                    }
                     let tip = match name.as_str() {
                         "recentProjects" => app.session.prefs.recent_projects.get(i).cloned(),
                         "recentFootage" => app.session.prefs.recent_footage.get(i).cloned(),
@@ -2082,6 +2099,24 @@ fn menu_nodes(
                 }
             }
         }
+    }
+}
+
+/// Whether menu node `n` shows: not when it runs a hidden command ([`crate::Hooks::hidden_commands`]),
+/// a dynamic list whose every entry does, or a submenu with nothing left in it.
+fn shown(app: &EffectcraftApp, n: &MenuNode) -> bool {
+    let hidden = |c: &str| app.hooks.hidden_commands.contains(&c);
+    match n {
+        MenuNode::Separator => true,
+        MenuNode::Item(e) => !hidden(&e.command),
+        MenuNode::Dynamic { name } => {
+            if app.hooks.hidden_commands.is_empty() {
+                return true;
+            }
+            let (entries, _) = effectcraft_engine::menus::dynamic(&app.session, name, &dyn_ctx(&app.ui.workspace, &[]));
+            entries.is_empty() || entries.iter().any(|e| !hidden(&e.command))
+        }
+        MenuNode::Submenu { children, .. } => children.iter().any(|c| !matches!(c, MenuNode::Separator) && shown(app, c)),
     }
 }
 
@@ -2461,6 +2496,27 @@ mod tests {
         asked.borrow_mut().clear();
         invoke(&mut app, &ctx, "comp.saveFrameAs", json!({})).unwrap();
         assert_eq!(*asked.borrow(), ["project Frame.png"]);
+    }
+
+    /// A host's hidden commands (webxdc: no saving to disk, no scripts): the menus leave them out,
+    /// along with submenus they empty, and running one is refused.
+    #[test]
+    fn hidden_commands_leave_the_menus_and_are_refused() {
+        let mut app = EffectcraftApp::new(effectcraft_engine::Session::default());
+        let ctx = egui::Context::default();
+        let menu = effectcraft_engine::menus::menu_bar();
+        let file = |app: &EffectcraftApp, label: &str| {
+            let Some(MenuNode::Submenu { children, .. }) = menu.iter().find(|n| matches!(n, MenuNode::Submenu { label, .. } if label == "File")) else {
+                panic!("File menu")
+            };
+            let n = children.iter().find(|n| matches!(n, MenuNode::Submenu { label: l, .. } if l == label)).expect(label);
+            shown(app, n)
+        };
+        assert!(file(&app, "Scripts") && file(&app, "Save As"));
+        app.hooks.hidden_commands = crate::WEBXDC_HIDDEN;
+        assert!(!file(&app, "Scripts") && !file(&app, "Save As"));
+        assert!(file(&app, "Import"));
+        assert!(invoke(&mut app, &ctx, "file.save", json!({})).unwrap_err().contains("not available"));
     }
 
     /// #511: with a host's non-blocking dialogs, a command's file dialog opens without running

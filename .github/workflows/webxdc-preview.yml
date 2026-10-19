@@ -1,0 +1,66 @@
+# Builds the webxdc app for every pull request and posts a sticky comment linking the
+# preview effectcraft.xdc, to drop into a Delta Chat chat.
+name: webxdc preview
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write # sticky preview-build comment
+
+concurrency:
+  group: webxdc-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  xdc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: "0"
+      BINARYEN_VERSION: "123"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Rust (stable + wasm32)
+        run: |
+          rustup toolchain install stable --profile minimal --target wasm32-unknown-unknown
+          rustup default stable
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+
+      - name: Install wasm-bindgen and wasm-opt
+        run: |
+          v="$(sed -n 's/^const WASM_BINDGEN: &str = "\(.*\)";$/\1/p' xtask/src/main.rs)"
+          cargo install wasm-bindgen-cli --version "$v" --locked
+          curl -fsSL "https://github.com/WebAssembly/binaryen/releases/download/version_${BINARYEN_VERSION}/binaryen-version_${BINARYEN_VERSION}-x86_64-linux.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/binaryen-version_${BINARYEN_VERSION}/bin" >> "$GITHUB_PATH"
+
+      - name: Build effectcraft.xdc
+        run: |
+          packaging/webxdc/package.sh
+          . packaging/env.sh
+          mkdir -p dist-xdc
+          cp "$DIST/effectcraft-$VERSION.xdc" dist-xdc/effectcraft.xdc
+
+      - name: Upload preview .xdc artifact
+        id: upload_xdc
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-xdc
+          path: dist-xdc/effectcraft.xdc
+          retention-days: 30
+
+      - name: Post sticky PR comment with preview link
+        # A pull request from another fork gets a read-only token: no comment, the artifact stays.
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: xdc-preview
+          message: |
+            ## 📦 Preview build ready
+
+            [Download effectcraft.xdc](${{ steps.upload_xdc.outputs.artifact-url }}) and drop it into a Delta Chat chat to test this PR.
