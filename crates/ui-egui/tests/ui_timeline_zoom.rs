@@ -452,3 +452,27 @@ fn the_timeline_follows_the_cti_past_its_edges() {
     let (s4, e4) = visible(&h);
     assert!(s4 > s3 && cti >= s4 && cti <= e4, "paged from {s3}..{e3} to {s4}..{e4} for the CTI at {cti}");
 }
+
+/// Scrubbing the ruler is interacting: with Fast Previews ▸ Adaptive Resolution (on by default
+/// in the webxdc build) the viewer renders at a lower resolution until the button is released.
+#[test]
+fn ruler_scrub_lowers_the_resolution_with_adaptive_previews() {
+    let (mut h, _) = harness();
+    h.state_mut().session.state.viewer.fast_previews = effectcraft_engine::commands::viewer_cmds::FastPreviews::AdaptiveResolution;
+    let r = h.state().auto.find("timeline.ruler").unwrap().rect;
+    let y = r[1] + r[3] * 0.75;
+    let (a, b) = (pos2(r[0] + 60.0, y), pos2(r[0] + 200.0, y));
+    let button = |pos, pressed| Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Modifiers::NONE };
+    h.event(Event::PointerMoved(a));
+    h.event(button(a, true));
+    h.step();
+    for x in [20.0, 80.0, 140.0] {
+        h.event(Event::PointerMoved(a + vec2(x, 0.0)));
+        h.step();
+    }
+    assert!(h.state().session.time().seconds() > 0.0, "the scrub moved the current time");
+    assert!(h.state().viewer_scale(1.0, 1.0) < 1.0, "lower resolution while scrubbing");
+    h.event(button(b, false));
+    h.run_steps(2);
+    assert_eq!(h.state().viewer_scale(1.0, 1.0), 1.0, "full resolution once released");
+}

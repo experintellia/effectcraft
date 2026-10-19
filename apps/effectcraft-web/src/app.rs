@@ -149,7 +149,7 @@ pub fn session() -> Session {
         config: Some(Arc::new(persist::config())),
         offload: (!query_flag("noworkers")).then(|| {
             // Job workers render on a WebGPU device of their own (`?nogpuworkers`: their CPU).
-            worker::set_job_worker_gpu(!query_flag("nogpuworkers"));
+            worker::set_job_worker_gpu(gpu_workers());
             Arc::new(worker::WorkerOffload) as Arc<dyn effectcraft_engine::offload::Offload>
         }),
         browser: Some(Arc::new(browse::WebBrowser)),
@@ -180,7 +180,21 @@ fn install_hooks(app: &mut EffectcraftApp) {
     app.hooks.audio_devices = Some(Box::new(|| vec!["Browser default output".into()]));
     if in_webxdc() {
         app.hooks.hidden_commands = effectcraft_ui_egui::WEBXDC_HIDDEN;
+        app.hooks.gpu_hint = Some(effectcraft_ui_egui::WEBXDC_GPU_HINT);
     }
+}
+
+/// Workers open a WebGPU device of their own unless `?nogpuworkers` (a software fallback
+/// adapter is declined: `GpuContext::request`).
+fn gpu_workers() -> bool {
+    !query_flag("nogpuworkers")
+}
+
+/// Frame workers by default: a quarter of the CPU's threads, 2 to 6. A preview renders a frame
+/// per worker at a time, on the worker's CPU where workers have no WebGPU.
+fn default_frame_workers() -> usize {
+    let threads = web_sys::window().map_or(0.0, |w| w.navigator().hardware_concurrency());
+    ((threads as usize) / 4).clamp(2, 6)
 }
 
 /// Running as a webxdc app (packaging/webxdc): the messenger's `webxdc.js` defines `window.webxdc`.
@@ -249,6 +263,11 @@ pub async fn start(canvas_id: String) -> Result<(), JsValue> {
                     let _ = session.execute("file.openDemoProject", json!({}));
                 }
                 api::set_info("restored", json!(restored));
+                // In a messenger frames often render on the CPU (no WebGPU): scrubbing and
+                // dragging show lower-resolution frames until the pointer is released.
+                if in_webxdc() {
+                    session.state.viewer.fast_previews = effectcraft_engine::commands::viewer_cmds::FastPreviews::AdaptiveResolution;
+                }
                 // The ScriptUI panels open on the last visit open again.
                 let _ = session.execute("window.restoreScriptPanels", json!({}));
                 let mut app = EffectcraftApp::new(session);
@@ -261,9 +280,13 @@ pub async fn start(canvas_id: String) -> Result<(), JsValue> {
                 // Viewer frames render in frame workers (`?frameworkers=N`, 0 or `?noworkers`:
                 // on the page's thread), each on its own WebGPU device where the browser has
                 // WebGPU in workers (`?nogpuworkers`: their CPU).
-                let n = if query_flag("noworkers") { 0 } else { query_value("frameworkers").and_then(|v| v.parse().ok()).unwrap_or(2usize).min(8) };
+                let n = if query_flag("noworkers") {
+                    0
+                } else {
+                    query_value("frameworkers").and_then(|v| v.parse().ok()).unwrap_or_else(default_frame_workers).min(8)
+                };
                 if n > 0 {
-                    app.frames.set_remote(Some(Arc::new(frames::WebFrames::start(n, !query_flag("nogpuworkers")))));
+                    app.frames.set_remote(Some(Arc::new(frames::WebFrames::start(n, gpu_workers()))));
                 }
                 let (tx, rx) = std::sync::mpsc::channel();
                 api::set_sender(tx);

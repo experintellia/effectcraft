@@ -44,7 +44,7 @@ with every L0–L4 crate and `effectcraft-ui-egui`, for `wasm32-unknown-unknown`
 URL flags: `?empty` (a blank project; the session is not restored or recorded), `?demo` (the demo
 project instead of the last session), `?home` (show the start screen), `?storage=indexeddb` /
 `?storage=memory` (force a storage backend), `?noworkers` (render, analyse and draw viewer
-frames on the page's thread), `?frameworkers=N` (frame workers, default 2; 0 = viewer frames on
+frames on the page's thread), `?frameworkers=N` (frame workers, default a quarter of the CPU threads, 2 to 6; 0 = viewer frames on
 the page's thread), `?nogpuworkers` (frame and job workers render on their CPU, without a WebGPU
 device of their own), `?nosw` (don't register the service worker).
 
@@ -140,7 +140,7 @@ directly on the session (scripts) still block.
 ### Viewer frames: frame workers
 
 Viewer frames (the frame on screen, RAM preview and prefetch) render in long-lived **frame
-workers** (`src/frames.rs`, `crates/engine/src/remote.rs`), two by default. Each holds a replica
+workers** (`src/frames.rs`, `crates/engine/src/remote.rs`), a quarter of the CPU threads by default (2 to 6). Each holds a replica
 of the project:
 
 1. Before a render, the page sends a worker the footage files it lacks, then a sync: the whole
@@ -400,6 +400,11 @@ these differences:
   starts as `?noworkers`: viewer frames, Render Queue renders and analyses run on the page's
   thread. The Telegram sticker export runs on the page either way. `effectcraft.info().load.workers`
   says which. `audio-worklet.js` falls back to a `ScriptProcessorNode` on its own.
+- **Faster previews without a GPU.** In a messenger frames often render on the CPU (no WebGPU),
+  so Fast Previews ▸ Adaptive Resolution is on: frames render at half size while scrubbing or
+  dragging, and at full size once the pointer is released. A worker declines a software
+  fallback WebGPU adapter (SwiftShader, where Chromium blocklists the GPU, e.g. ARM GPUs on
+  Linux) and renders on its CPU: in Delta Chat desktop that measured faster.
 - **No saving to disk.** The project lives in the app's browser storage (it comes back when the
   app is reopened). The host hides the commands a messenger can't run (`Hooks::hidden_commands`):
   Save, Save As and its variants, Increment and Save, Revert, Reveal in Finder, Watch Folder,

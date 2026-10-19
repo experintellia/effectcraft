@@ -505,96 +505,98 @@ pub fn open_form(app: &mut EffectcraftApp, id: &str, p: &Value) -> bool {
                 l if l.starts_with("32") => 2,
                 _ => 0,
             };
-            (
-                "Project Settings".into(),
-                vec![
-                    Field::choice(
-                        "bitDepth",
-                        "Depth",
-                        &[("8 bits per channel", json!(8)), ("16 bits per channel", json!(16)), ("32 bits per channel (float)", json!(32))],
-                        depth,
-                    ),
-                    Field::choice(
-                        "timeDisplay",
-                        "Time display style",
-                        &[
-                            ("Timecode", json!("timecode")),
-                            ("Frames", json!("frames")),
-                            ("Feet + Frames (35mm)", json!("feet35")),
-                            ("Feet + Frames (16mm)", json!("feet16")),
-                        ],
-                        {
-                            use effectcraft_engine::project::TimeDisplayStyle as T;
-                            match st.time_display {
-                                T::Timecode => 0,
-                                T::Frames => 1,
-                                T::Feet35 => 2,
-                                T::Feet16 => 3,
-                            }
-                        },
-                    ),
-                    Field::choice(
-                        "colorEngine",
-                        "Color engine",
-                        &[("Adobe-style built-in", json!("adobe")), ("OCIO (built-in ACES config)", json!("ocio"))],
-                        usize::from(st.color_engine == effectcraft_engine::project::ColorEngine::Ocio),
-                    ),
-                    Field::choice(
-                        "workingSpace",
-                        "Working space",
-                        &[
-                            ("None", json!("none")),
-                            ("sRGB IEC61966-2.1", json!("srgb")),
-                            ("HDTV (Rec. 709)", json!("rec709")),
-                            ("Rec. 2020", json!("rec2020")),
-                            ("Display P3", json!("p3")),
-                            ("ACEScg", json!("acescg")),
-                            ("ACES2065-1", json!("aces2065")),
-                        ],
-                        st.working_space.map_or(0, |c| 1 + effectcraft_engine::project::ColorSpace::WORKING.iter().position(|x| *x == c).unwrap_or(0)),
-                    ),
-                    // With Working Space None (After Effects' Working Gamma, 2.2 or 2.4).
-                    Field::choice("workingGamma", "Working gamma", &[("2.2", json!(2.2)), ("2.4", json!(2.4))], usize::from(st.working_gamma_24())),
-                    Field::bool("linearize", "Linearize working space", st.linearize),
-                    Field::bool("blendLinear", "Blend colors using 1.0 gamma", st.blend_linear),
-                    Field::choice(
-                        "hdr",
-                        "HDR on SDR displays and outputs",
-                        &[("Clip", json!("clip")), ("Compand", json!("compand")), ("Tone map", json!("toneMap"))],
-                        st.hdr as usize,
-                    ),
-                    Field::choice(
-                        "outputSpace",
-                        "Output color space",
-                        &[
-                            ("sRGB IEC61966-2.1 (default)", json!("default")),
-                            ("HDTV (Rec. 709)", json!("rec709")),
-                            ("Rec. 2020", json!("rec2020")),
-                            ("Display P3", json!("p3")),
-                            ("Rec. 2100 PQ (HDR)", json!("rec2100pq")),
-                            ("Rec. 2100 HLG (HDR)", json!("rec2100hlg")),
-                        ],
-                        {
-                            use effectcraft_engine::project::ColorSpace as C;
-                            match st.output_space {
-                                Some(C::Rec709) => 1,
-                                Some(C::Rec2020) => 2,
-                                Some(C::DisplayP3) => 3,
-                                Some(C::Rec2100Pq) => 4,
-                                Some(C::Rec2100Hlg) => 5,
-                                _ => 0,
-                            }
-                        },
-                    ),
-                    // Video Rendering and Effects ▸ Use.
-                    Field::choice(
-                        "renderer",
-                        "Video rendering and effects",
-                        &[(gpu_label.as_str(), json!("gpu")), ("Mercury Software Only", json!("software"))],
-                        usize::from(!st.gpu_acceleration),
-                    ),
-                ],
-            )
+            let mut fields = vec![
+                Field::choice(
+                    "bitDepth",
+                    "Depth",
+                    &[("8 bits per channel", json!(8)), ("16 bits per channel", json!(16)), ("32 bits per channel (float)", json!(32))],
+                    depth,
+                ),
+                Field::choice(
+                    "timeDisplay",
+                    "Time display style",
+                    &[
+                        ("Timecode", json!("timecode")),
+                        ("Frames", json!("frames")),
+                        ("Feet + Frames (35mm)", json!("feet35")),
+                        ("Feet + Frames (16mm)", json!("feet16")),
+                    ],
+                    {
+                        use effectcraft_engine::project::TimeDisplayStyle as T;
+                        match st.time_display {
+                            T::Timecode => 0,
+                            T::Frames => 1,
+                            T::Feet35 => 2,
+                            T::Feet16 => 3,
+                        }
+                    },
+                ),
+                Field::choice(
+                    "colorEngine",
+                    "Color engine",
+                    &[("Adobe-style built-in", json!("adobe")), ("OCIO (built-in ACES config)", json!("ocio"))],
+                    usize::from(st.color_engine == effectcraft_engine::project::ColorEngine::Ocio),
+                ),
+                Field::choice(
+                    "workingSpace",
+                    "Working space",
+                    &[
+                        ("None", json!("none")),
+                        ("sRGB IEC61966-2.1", json!("srgb")),
+                        ("HDTV (Rec. 709)", json!("rec709")),
+                        ("Rec. 2020", json!("rec2020")),
+                        ("Display P3", json!("p3")),
+                        ("ACEScg", json!("acescg")),
+                        ("ACES2065-1", json!("aces2065")),
+                    ],
+                    st.working_space.map_or(0, |c| 1 + effectcraft_engine::project::ColorSpace::WORKING.iter().position(|x| *x == c).unwrap_or(0)),
+                ),
+                // With Working Space None (After Effects' Working Gamma, 2.2 or 2.4).
+                Field::choice("workingGamma", "Working gamma", &[("2.2", json!(2.2)), ("2.4", json!(2.4))], usize::from(st.working_gamma_24())),
+                Field::bool("linearize", "Linearize working space", st.linearize),
+                Field::bool("blendLinear", "Blend colors using 1.0 gamma", st.blend_linear),
+                Field::choice(
+                    "hdr",
+                    "HDR on SDR displays and outputs",
+                    &[("Clip", json!("clip")), ("Compand", json!("compand")), ("Tone map", json!("toneMap"))],
+                    st.hdr as usize,
+                ),
+                Field::choice(
+                    "outputSpace",
+                    "Output color space",
+                    &[
+                        ("sRGB IEC61966-2.1 (default)", json!("default")),
+                        ("HDTV (Rec. 709)", json!("rec709")),
+                        ("Rec. 2020", json!("rec2020")),
+                        ("Display P3", json!("p3")),
+                        ("Rec. 2100 PQ (HDR)", json!("rec2100pq")),
+                        ("Rec. 2100 HLG (HDR)", json!("rec2100hlg")),
+                    ],
+                    {
+                        use effectcraft_engine::project::ColorSpace as C;
+                        match st.output_space {
+                            Some(C::Rec709) => 1,
+                            Some(C::Rec2020) => 2,
+                            Some(C::DisplayP3) => 3,
+                            Some(C::Rec2100Pq) => 4,
+                            Some(C::Rec2100Hlg) => 5,
+                            _ => 0,
+                        }
+                    },
+                ),
+                // Video Rendering and Effects ▸ Use.
+                Field::choice(
+                    "renderer",
+                    "Video rendering and effects",
+                    &[(gpu_label.as_str(), json!("gpu")), ("Mercury Software Only", json!("software"))],
+                    usize::from(!st.gpu_acceleration),
+                ),
+            ];
+            // Without a GPU, the host's troubleshooting hint (webxdc: how to enable WebGPU).
+            if let (None, Some(hint)) = (&s.accel, app.hooks.gpu_hint) {
+                fields.push(Field::note("gpuHint", hint));
+            }
+            ("Project Settings".into(), fields)
         }
         "layer.autoTrace" if !has(p, &["channel", "timeSpan", "threshold"]) => (
             "Auto-trace".into(),
@@ -805,11 +807,11 @@ fn form_grid(ui: &mut egui::Ui, f: &mut Form, regs: &mut Vec<(String, egui::Rect
                     .inner
                 }
                 // A fixed width: in the grid's value column a wrapping label would otherwise
-                // shrink to a word per line.
+                // shrink to a word per line. Selectable: notes can hold a command to copy.
                 FieldKind::Note(text) => {
                     ui.scope(|ui| {
                         ui.set_width(220.0);
-                        ui.add(egui::Label::new(egui::RichText::new(tr(text.as_str())).small()).wrap())
+                        ui.add(egui::Label::new(egui::RichText::new(tr(text.as_str())).small()).wrap().selectable(true))
                     })
                     .inner
                     .rect
@@ -984,6 +986,19 @@ mod tests {
 
     /// A numeric form (Layer ▸ Transform ▸ Position…) opens with its first number being edited
     /// and selected: typing replaces it, and one Enter confirms.
+    /// Without a GPU, Project Settings shows the host's hint under the renderer (webxdc: how to
+    /// get WebGPU in Delta Chat desktop); a host without one shows none.
+    #[test]
+    fn project_settings_shows_the_hosts_gpu_hint_without_a_gpu() {
+        let mut app = EffectcraftApp::new(effectcraft_engine::Session::default());
+        let hint = |app: &EffectcraftApp| app.dialog_state.form.fields.iter().any(|f| f.key == "gpuHint");
+        assert!(open_form(&mut app, "file.projectSettings", &json!({})));
+        assert!(!hint(&app));
+        app.hooks.gpu_hint = Some(crate::WEBXDC_GPU_HINT);
+        assert!(open_form(&mut app, "file.projectSettings", &json!({})));
+        assert!(hint(&app));
+    }
+
     #[test]
     fn a_numeric_form_opens_with_its_first_number_selected() {
         let mut app = EffectcraftApp::new(effectcraft_engine::Session::default());

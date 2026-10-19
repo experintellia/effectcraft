@@ -787,6 +787,13 @@ impl GpuContext {
             .request_adapter(&wgpu::RequestAdapterOptions { power_preference: wgpu::PowerPreference::HighPerformance, ..Default::default() })
             .await
             .map_err(|e| format!("no adapter: {e}"))?;
+        // A browser's software fallback (SwiftShader where the GPU is blocklisted, e.g. ARM GPUs
+        // on Linux) emulates the GPU on the CPU: in Delta Chat it previewed slower than the CPU
+        // renderer, which frames then use.
+        #[cfg(target_arch = "wasm32")]
+        if adapter.get_info().device_type == wgpu::DeviceType::Cpu {
+            return Err(format!("{}: a software fallback adapter, slower than rendering on the CPU", adapter.get_info().name));
+        }
         let limits = adapter.limits();
         let required_limits = wgpu::Limits {
             max_texture_dimension_2d: limits.max_texture_dimension_2d.min(16384),
