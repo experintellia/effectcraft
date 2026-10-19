@@ -106,9 +106,10 @@ fn main() {
     let (tx, rx) = mpsc::channel::<ControlRequest>();
     let mut harness = Harness::builder().with_size(egui::vec2(args.size.0, args.size.1)).with_pixels_per_point(args.scale).wgpu().build_eframe(move |_cc| {
         let mut app = EffectcraftApp::new(session).with_control(rx);
-        // `--webxdc`: the webxdc build's menus.
+        // `--webxdc`: the webxdc build's menus and GPU hint.
         if webxdc {
             app.hooks.hidden_commands = effectcraft_ui_egui::WEBXDC_HIDDEN;
+            app.hooks.gpu_hint = Some(effectcraft_ui_egui::WEBXDC_GPU_HINT);
         }
         app
     });

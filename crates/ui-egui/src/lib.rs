@@ -174,6 +174,9 @@ pub struct Hooks {
     /// Commands the host can't run (in a messenger: saving to disk, scripts, watch folders,
     /// revealing files). Menus leave them out and [`menus::invoke`] refuses them.
     pub hidden_commands: &'static [&'static str],
+    /// Shown under Project Settings ▸ Video rendering and effects when there is no GPU: how to
+    /// get one on this host.
+    pub gpu_hint: Option<&'static str>,
 }
 
 /// The commands a webxdc host hides ([`Hooks::hidden_commands`]): in a messenger's sandbox the
@@ -195,6 +198,13 @@ pub const WEBXDC_HIDDEN: &[&str] = &[
     "help.revealLogFile",
     "app.quit",
 ];
+
+/// Delta Chat desktop runs Chromium, which blocklists WebGPU on some GPUs (ARM GPUs on Linux):
+/// frames then render on the CPU.
+pub const WEBXDC_GPU_HINT: &str = "No GPU? On a desktop (not on mobile), Delta Chat may block your GPU. Starting it as \
+     `deltachat --enable-unsafe-webgpu --ignore-gpu-blocklist --enable-features=Vulkan --use-angle=vulkan` \
+     can enable it. These flags turn off Chromium's GPU safety checks for every chat, which can lower your \
+     security and stability.";
 
 impl Hooks {
     /// The host's save dialog for `default` (a file name or path), offering its extension: the

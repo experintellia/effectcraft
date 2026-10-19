@@ -180,6 +180,7 @@ fn install_hooks(app: &mut EffectcraftApp) {
     app.hooks.audio_devices = Some(Box::new(|| vec!["Browser default output".into()]));
     if in_webxdc() {
         app.hooks.hidden_commands = effectcraft_ui_egui::WEBXDC_HIDDEN;
+        app.hooks.gpu_hint = Some(effectcraft_ui_egui::WEBXDC_GPU_HINT);
     }
 }
 
