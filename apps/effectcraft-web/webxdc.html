@@ -19,15 +19,91 @@
     }
     #loading img { width: 56px; height: 56px; }
     #loading .err { color: #ff8a7a; white-space: pre-wrap; max-width: 70ch; pointer-events: auto; }
+    #loading .bar { width: min(320px, 80vw); height: 4px; border-radius: 2px; background: #333438; overflow: hidden; }
+    #loading .bar div { width: 0; height: 100%; background: #6b9bff; transition: width 0.2s; }
+    /* Selectable, so the timings can be copied into a bug report from a device with no console. */
+    #log {
+      max-width: min(70ch, 90vw); font: 11px/1.5 ui-monospace, monospace; color: #8a8a90; text-align: center;
+      pointer-events: auto; user-select: text; -webkit-user-select: text;
+    }
   </style>
 </head>
 <body>
   <canvas id="effectcraft_canvas"></canvas>
-  <div id="loading"><img src="icon.png" alt=""><div id="status">Loading EffectCraft…</div></div>
+  <div id="loading">
+    <img src="icon.png" alt="">
+    <div id="status">Loading EffectCraft…</div>
+    <div class="bar"><div id="bar"></div></div>
+    <div id="log"></div>
+  </div>
+  <script>
+    // The loading bar: each startup stage, how long it took and the one running now, so a slow or
+    // stuck stage shows on a device without a console (iOS). The bootstrap below and the Rust side
+    // (`loadStage` in js/host.js) call `effectcraftStage(name)` as each stage begins; the overlay
+    // goes with the first frame (src/app.rs). A classic script: it runs before the module's
+    // import (effectcraft_web.js) has loaded.
+    (() => {
+      const LABELS = {
+        js: "Loading the app script", download: "Downloading the app", compile: "Compiling the app",
+        instantiate: "Starting the app", workers: "Checking Web Workers (gives up after 10 s)",
+        storage: "Reading browser storage", gpu: "Requesting the GPU (WebGPU adapter and device)",
+        restore: "Restoring the document", ui: "Setting up the interface",
+        "first frame": "Drawing the first frame (fonts, layout)", ready: "Ready",
+      };
+      // Where each stage starts on the bar (a rough share of a typical load: the download and
+      // compile of the ~15 MB gzipped wasm dominate).
+      const AT = { page: 0, js: 0.02, download: 0.05, compile: 0.6, instantiate: 0.8, workers: 0.83,
+        storage: 0.85, gpu: 0.88, restore: 0.92, ui: 0.95, "first frame": 0.97, ready: 1 };
+      const sec = (ms) => (ms / 1000).toFixed(1) + "\u00a0s";
+      const $ = (id) => document.getElementById(id);
+      // `stages`: finished stages `{name, ms, detail?}`; "page" is the time from navigation start
+      // to here (the HTML and the messenger's webxdc.js).
+      const load = window.effectcraftLoad = { stages: [{ name: "page", ms: Math.round(performance.now()) }] };
+      let cur = { name: "js", t: performance.now() };
+      let frac = 0, detail = "";
+      const log = (now) => load.stages.map((s) => `${s.name}\u00a0${sec(s.ms)}${s.detail ? ` (${s.detail})` : ""}`)
+        .concat(cur ? [`${cur.name}\u00a0${sec(now - cur.t)}${load.error ? " FAILED" : "…"}`] : []).join(" · ");
+      const show = () => {
+        const now = performance.now();
+        load.log = log(now);
+        if (!$("log")) return;
+        $("log").textContent = load.log;
+        if (!cur || load.error) return;
+        $("status").textContent = `${LABELS[cur.name] ?? cur.name}${detail ? ": " + detail : ""} · ${sec(now - cur.t)}`;
+        const next = Object.values(AT).find((v) => v > AT[cur.name]) ?? 1;
+        $("bar").style.width = (100 * (AT[cur.name] + frac * (next - AT[cur.name]))).toFixed(1) + "%";
+      };
+      const timer = setInterval(show, 250);
+      // Start stage `name`, ending the current one (its `detail`, e.g. the bytes downloaded, goes
+      // into the log). `progress(f, detail)` moves the bar within the current stage.
+      window.effectcraftStage = (name) => {
+        const now = performance.now();
+        if (cur) load.stages.push({ name: cur.name, ms: Math.round(now - cur.t), ...(detail && { detail }) });
+        cur = name === "ready" ? null : { name, t: now };
+        frac = 0;
+        detail = "";
+        load.stage = name;
+        if (!cur) {
+          load.readyMs = Math.round(now);
+          clearInterval(timer);
+        }
+        show();
+      };
+      window.effectcraftStage.progress = (f, d) => { frac = Math.min(Math.max(f, 0), 1); detail = d; };
+      // A failed start: the log stays up, the running stage marked failed.
+      window.effectcraftStage.fail = (msg) => {
+        load.error = msg;
+        clearInterval(timer);
+        show();
+        $("status").className = "err";
+        $("status").textContent = "EffectCraft failed to start:\n" + msg;
+      };
+      show();
+    })();
+  </script>
   <script type="module">
     import init, * as ec from "./effectcraft_web.js";
-    const t0 = performance.now();
-    window.effectcraftLoad = {};
+    const stage = window.effectcraftStage;
     // The agent / test API (docs/web.md), as on the web build.
     window.effectcraft = {
       request: (method, params) => ec.request(method, params ?? {}),
@@ -37,14 +113,15 @@
       screenshot: (params) => ec.request("ui.screenshot", params ?? {}),
       files: () => ec.files(),
       readFile: (path) => ec.readFile(path),
-      info: () => ({ ...ec.info(), webgpu: !!navigator.gpu, load: window.effectcraftLoad }),
+      // (`ec.info` throws before the wasm is instantiated: the load timings still answer then)
+      info: () => { let i = {}; try { i = ec.info(); } catch {} return { ...i, webgpu: !!navigator.gpu, load: window.effectcraftLoad }; },
     };
     // Workers may not load inside a messenger's webview: without one, frames and jobs run on the
     // page's thread (?noworkers). A worker answers once its script loaded.
     const workers = new Promise((res) => {
       try {
         const w = new Worker("worker.js", { type: "module" });
-        const done = (ok) => { w.terminate(); res(ok); };
+        const done = (ok) => { window.effectcraftLoad.workerMs ??= Math.round(performance.now()); w.terminate(); res(ok); };
         w.onmessage = () => done(true);
         w.onerror = () => done(false);
         w.postMessage({ type: "ping" });
@@ -55,19 +132,35 @@
       // Stored gzipped (Delta Chat inflates zip entries slowly); the browser gunzips it while
       // compiling. Compiled once: the page and its workers instantiate the same module.
       // ponytail: needs DecompressionStream (Chrome 80, Safari 16.4, Firefox 113); no fallback.
+      stage("download");
       const res = await fetch("effectcraft_web_bg.wasm.gz");
-      const wasm = new Response(res.body.pipeThrough(new DecompressionStream("gzip")), { headers: { "content-type": "application/wasm" } });
+      if (!res.ok) throw new Error(`effectcraft_web_bg.wasm.gz: HTTP ${res.status}`);
+      // The messenger may not send a length: package.sh writes the .gz's size in here.
+      const total = Number(res.headers.get("content-length")) || Number("@WASM_GZ_BYTES@") || 0;
+      const mb = (n) => (n / 1e6).toFixed(1);
+      let got = 0;
+      // Counts the bytes as they arrive; the last one ends the download (compiling streams along
+      // with it, so "compile" is what remains after it).
+      const count = new TransformStream({
+        transform(chunk, c) {
+          got += chunk.byteLength;
+          stage.progress(total ? got / total : 0, total ? `${mb(got)} of ${mb(total)} MB` : `${mb(got)} MB`);
+          c.enqueue(chunk);
+        },
+        flush() { stage("compile"); },
+      });
+      const wasm = new Response(res.body.pipeThrough(count).pipeThrough(new DecompressionStream("gzip")), { headers: { "content-type": "application/wasm" } });
       const module = await WebAssembly.compileStreaming(wasm);
       window.effectcraftModule = module;
+      stage("instantiate");
       await init({ module_or_path: module });
+      stage("workers");
       if (!(window.effectcraftLoad.workers = await workers)) history.replaceState(null, "", "?noworkers");
-      window.effectcraftLoad.wasmMs = performance.now() - t0;
+      window.effectcraftLoad.wasmMs = Math.round(performance.now());
+      // Stages from here on come from the Rust side, up to "ready" with the first frame.
       await ec.start("effectcraft_canvas");
-      window.effectcraftLoad.readyMs = performance.now() - t0;
     } catch (e) {
-      const s = document.getElementById("status");
-      if (s) { s.className = "err"; s.textContent = "EffectCraft failed to start:\n" + (e && e.stack || e); }
-      window.effectcraftLoad.error = String(e);
+      stage.fail(String(e && e.stack || e));
       throw e;
     }
   </script>
