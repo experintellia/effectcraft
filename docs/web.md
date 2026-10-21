@@ -419,11 +419,44 @@ these differences:
   starts as `?noworkers`: viewer frames, Render Queue renders and analyses run on the page's
   thread. The Telegram sticker export runs on the page either way. `effectcraft.info().load.workers`
   says which. `audio-worklet.js` falls back to a `ScriptProcessorNode` on its own.
+- **A loading bar with its stages**, so a slow or stuck start shows on a device without a console
+  (iOS): page (navigation start to the page script: the HTML and `webxdc.js`), js (the app's
+  JavaScript glue), download (bytes so far, of the `.gz`'s size that `package.sh` writes into the
+  page, as a messenger may send no `Content-Length`), compile, instantiate, workers (the worker
+  probe, up to 10 s), then from the Rust side (`loadStage` in `js/host.js`): storage (reading
+  browser storage), gpu (WebGPU adapter and device), restore (settings and the document), ui,
+  first frame (fonts, layout). The running stage counts up; the finished ones and their times stay
+  on screen as selectable text, also on an error. The overlay goes once the first frame is drawn.
+  `effectcraft.info().load` has `stages: [{name, ms, detail?}]`, `log` (that text), `stage`,
+  `workerMs`, and `wasmMs` / `readyMs` measured from navigation start.
 - **No saving to disk.** The project lives in the app's browser storage (it comes back when the
   app is reopened). The host hides the commands a messenger can't run (`Hooks::hidden_commands`):
   Save, Save As and its variants, Increment and Save, Revert, Reveal in Finder, Watch Folder,
   scripts and ScriptUI panels, Reveal Logging File and Quit. Menus leave them out and running one
   is refused; the unsaved-changes prompt offers Don't Save and Cancel.
+
+### Open work (webxdc)
+
+Issues are off on this fork, so the open items live here.
+
+- **Graphics acceleration.** In Delta Chat desktop the page has no usable GPU (File ▸ Project
+  Settings shows "Mercury GPU Acceleration (no GPU: software)"), and the workers' own WebGPU
+  devices measured slower than their CPU, so the webxdc build renders on the CPU. The GPU
+  compositor and effects need compute shaders, which WebGL2 lacks. Ideas:
+  - **WebGL UI (`glow`), as the GridCraft fork did.** The app would start in webviews without
+    WebGPU; the UI draws through wgpu, built without its WebGL backend, so today it can't start
+    there (likely most Android and iOS messenger webviews). It would also drop wgpu, naga, the
+    GPU crate and its WGSL, about 3.2 MB of 63.5 MB raw, roughly 0.7–0.8 MB of the 15 MB
+    `.xdc`. The catch: ui-egui gets `cc.wgpu_render_state` today, and would need to work with a
+    glow context, or none, behind a feature.
+  - **GPU help in a messenger:**
+    - WebGL2 fragment-shader versions of the hot effects (Glow, blurs) and of the compositor; or
+    - when the page has WebGPU, viewer frames rendered on the page's device, without the
+      workers' readback round trips.
+
+    Measure in Delta Chat desktop, Android and iOS before choosing.
+  - **Diagnostics:** an Info panel line saying whether workers render on a GPU or the CPU, and
+    which adapter. Today only `effectcraft.info()` says, which needs devtools.
 
 ## `window.effectcraft`: the agent / test API
 

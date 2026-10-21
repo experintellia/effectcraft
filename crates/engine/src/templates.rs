@@ -109,6 +109,13 @@ const BUILTINS: &[Builtin] = &[
         build: social_square,
     },
     Builtin {
+        id: "animated-sticker",
+        name: "Animated Sticker 512×512",
+        category: "Stickers",
+        description: "A 3 s looping bounce made only of what Telegram allows in animated stickers (File ▸ Export ▸ Telegram Sticker…). Essential Graphics: Ball Color.",
+        build: animated_sticker,
+    },
+    Builtin {
         id: "vertical-story",
         name: "Vertical 9:16 Story",
         category: "Social",
@@ -306,6 +313,34 @@ fn social_square(s: &mut Session) -> Result<()> {
     expose(s, handle, "text/sourceText", "Handle")?;
     expose(s, dot, "contents/group#1/contents/fill/color", "Accent Color")?;
     finish(s, "Social Square", 2.0)
+}
+
+/// Only what Telegram allows in animated stickers (`.tgs`): shape layers with fills, transform
+/// keyframes; no solids, effects, stars or text. It loops: the last frame matches the first.
+fn animated_sticker(s: &mut Session) -> Result<()> {
+    comp(s, "Animated Sticker", 512, 512, 3.0, "#20242C")?;
+    let shadow = shape(s, "Shadow", "ellipse", [180.0, 36.0], "#000000", [256.0, 446.0])?;
+    set(s, shadow, "transform/opacity", op(35.0));
+    let ball = shape(s, "Ball", "ellipse", [160.0, 160.0], "#FFC23D", [256.0, 356.0])?;
+    // Three bounces: the ball lands (squashed, its shadow wide) on each second and tops out on
+    // each half second.
+    let (mut pos, mut scale, mut wide) = (vec![], vec![], vec![]);
+    for k in 0..=3 {
+        let t = f64::from(k);
+        pos.push((t, p3(256.0, 356.0)));
+        scale.push((t, KV::Vec3([118.0, 84.0, 100.0])));
+        wide.push((t, sc(100.0)));
+        if k < 3 {
+            pos.push((t + 0.5, p3(256.0, 150.0)));
+            scale.push((t + 0.5, sc(100.0)));
+            wide.push((t + 0.5, sc(55.0)));
+        }
+    }
+    keys(s, ball, "transform/position", &pos);
+    keys(s, ball, "transform/scale", &scale);
+    keys(s, shadow, "transform/scale", &wide);
+    expose(s, ball, "contents/group#1/contents/fill/color", "Ball Color")?;
+    finish(s, "Animated Sticker", 0.5)
 }
 
 fn vertical_story(s: &mut Session) -> Result<()> {
@@ -962,6 +997,21 @@ mod tests {
         let v = l.iter().find(|t| t.id == "vertical-story").unwrap();
         assert_eq!((v.width, v.height), (1080, 1920));
         assert_eq!(l.iter().find(|t| t.id == "lower-third").unwrap().controls, ["Name", "Title", "Bar Color"]);
+    }
+
+    /// The sticker template passes File ▸ Export ▸ Telegram Sticker…'s checks as it is, in both
+    /// formats, and nothing in it is dropped from the `.tgs`.
+    #[test]
+    fn animated_sticker_passes_the_telegram_checks() {
+        let mut s = Session::default();
+        s.execute("templates.create", json!({"id": "animated-sticker"})).unwrap();
+        let c = s.active_comp().unwrap();
+        assert_eq!((c.width, c.height, c.duration.seconds()), (512, 512, 3.0));
+        for format in ["tgs", "webm"] {
+            let r = s.execute("file.exportTelegramSticker", json!({"check": true, "format": format})).unwrap();
+            assert_eq!(r["problems"], json!([]), "{format}: {r}");
+            assert_eq!(r["warnings"], json!([]), "{format}: {r}");
+        }
     }
 
     #[test]

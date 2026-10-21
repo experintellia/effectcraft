@@ -863,3 +863,11 @@ export function touchCover(rects) {
   s.height = `${b - t}px`;
   s.setProperty("clip-path", `path('${path}')`);
 }
+
+// ------------------------------------------------------------------ loading
+
+// A startup stage reached on the Rust side (src/app.rs: "storage", "gpu", …): the webxdc page
+// shows it on its loading bar (webxdc.html). The web build's page defines no hook.
+export function loadStage(name) {
+  globalThis.effectcraftStage?.(name);
+}

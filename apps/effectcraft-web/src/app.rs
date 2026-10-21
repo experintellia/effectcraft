@@ -15,6 +15,9 @@ use wasm_bindgen::prelude::*;
 extern "C" {
     #[wasm_bindgen(js_name = showDeviceLost)]
     fn show_device_lost(message: &str, kept: bool);
+    /// Report a startup stage to the page's loading bar (a no-op without one).
+    #[wasm_bindgen(js_name = loadStage)]
+    fn load_stage(name: &str);
 }
 
 /// Work for the UI thread with access to the app (posted by async tasks: picked files…).
@@ -85,6 +88,8 @@ pub struct WebApp {
     pub persist: bool,
     /// Touches on eframe's text input, for egui ([`touch`]).
     touches: touch::Touches,
+    /// A frame was drawn (the loading message is gone).
+    pub shown: bool,
 }
 
 impl eframe::App for WebApp {
@@ -121,6 +126,21 @@ impl eframe::App for WebApp {
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         self.app.ui(ui, frame);
+        // The first frame is laid out and paints when this returns: the loading message goes
+        // now, not when `start` returns (before any frame).
+        if !self.shown {
+            self.shown = true;
+            load_stage("ready");
+            // The webxdc page's stage log (`effectcraftLoad.log`), for Help ▸ About.
+            let load = web_sys::window().and_then(|w| js_sys::Reflect::get(&w, &JsValue::from_str("effectcraftLoad")).ok());
+            let field = |k: &str| load.as_ref().and_then(|l| js_sys::Reflect::get(l, &JsValue::from_str(k)).ok());
+            if let (Some(log), Some(ms)) = (field("log").and_then(|v| v.as_string()), field("readyMs").and_then(|v| v.as_f64())) {
+                self.app.hooks.about_note = Some(format!("Startup took {:.1} s: {log}", ms / 1000.0));
+            }
+            if let Some(el) = web_sys::window().and_then(|w| w.document()).and_then(|d| d.get_element_by_id("loading")) {
+                el.remove();
+            }
+        }
     }
 }
 
@@ -201,6 +221,7 @@ pub async fn start(canvas_id: String) -> Result<(), JsValue> {
     let home = query_flag("home");
     // Browser storage: settings, recent projects, imported media, saved projects, auto-saves and
     // the last session come back.
+    load_stage("storage");
     let t0 = js_sys::Date::now();
     let stored = match persist::load(&query_value("storage").unwrap_or_default()).await {
         Ok(n) => n,
@@ -214,6 +235,8 @@ pub async fn start(canvas_id: String) -> Result<(), JsValue> {
     browse::restore();
     diskcache::init();
     storage::refresh();
+    // eframe asks the browser for a WebGPU adapter and device (WebGL2 without one) first.
+    load_stage("gpu");
     let runner = eframe::WebRunner::new();
     let touch_canvas = canvas.clone();
     runner
@@ -221,6 +244,7 @@ pub async fn start(canvas_id: String) -> Result<(), JsValue> {
             canvas,
             eframe::WebOptions::default(),
             Box::new(move |cc| {
+                load_stage("restore");
                 CTX.with(|c| *c.borrow_mut() = Some(cc.egui_ctx.clone()));
                 let touches = touch::install(&cc.egui_ctx, &touch_canvas);
                 // The page owns this shared presentation device; worker devices retain their
@@ -256,6 +280,7 @@ pub async fn start(canvas_id: String) -> Result<(), JsValue> {
                 api::set_info("restored", json!(restored));
                 // The ScriptUI panels open on the last visit open again.
                 let _ = session.execute("window.restoreScriptPanels", json!({}));
+                load_stage("ui");
                 let mut app = EffectcraftApp::new(session);
                 app.set_gpu_failure_bridge(gpu_failures);
                 app.ui.start_screen = home;
@@ -275,13 +300,11 @@ pub async fn start(canvas_id: String) -> Result<(), JsValue> {
                 app = app.with_control(rx);
                 let backend = cc.wgpu_render_state.as_ref().map(|rs| format!("{:?}", rs.adapter.get_info().backend));
                 api::set_info("backend", json!(backend));
-                Ok(Box::new(WebApp { app, persist: !empty, touches }))
+                Ok(Box::new(WebApp { app, persist: !empty, touches, shown: false }))
             }),
         )
         .await?;
-    // Hide the loading message once the app runs.
-    if let Some(el) = doc.get_element_by_id("loading") {
-        el.remove();
-    }
+    // Fonts, layout and the first paint (`WebApp::ui` hides the loading message after it).
+    load_stage("first frame");
     Ok(())
 }
