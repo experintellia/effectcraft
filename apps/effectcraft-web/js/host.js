@@ -812,8 +812,9 @@ export function touchInstall(canvas, holdMs, onTap, onTouch) {
     touch = null;
     if (t.gesture === "tap") {
       clearTimeout(t.timer);
-      // The browser focuses the input after this (where `focusin` reports the tap).
-      if (e.type === "touchend") tapped = at(now.clientX, now.clientY);
+      // The browser focuses the input after this (where `focusin` reports the tap). Where the
+      // finger came down: it's on a field, where it lifts (up to TAP_SLOP away) may not be.
+      if (e.type === "touchend") tapped = at(t.x, t.y);
       return;
     }
     if (t.gesture === "drag") onTouch(e.type === "touchcancel" ? "cancel" : "end", t.id, ...at(now.clientX, now.clientY));
@@ -827,9 +828,12 @@ export function touchInstall(canvas, holdMs, onTap, onTouch) {
   // Android's own long press comes sooner than egui's (a `contextmenu`, then the text field's
   // popup): it makes a waiting tap a long press at once, without the popup.
   document.addEventListener("contextmenu", (e) => {
-    if (!touch || !onInput(e)) return;
-    clearTimeout(touch.timer);
-    longPress();
+    if (!onInput(e)) return;
+    // A mouse's right click on it: no text field menu (eframe blocks its own on the canvas only).
+    if (touch) {
+      clearTimeout(touch.timer);
+      longPress();
+    }
     e.preventDefault();
     e.stopPropagation();
   }, opts);
@@ -839,9 +843,11 @@ export function touchInstall(canvas, holdMs, onTap, onTouch) {
     if (e.pointerType === "touch" && touch && touch.gesture === "drag") e.stopPropagation();
   }, opts);
   // A mouse or trackpad on a touch screen (an iPad's) fires no touch events, and focuses the input
-  // on the press itself.
+  // on the press itself. Only its primary button taps: a right click isn't a tap.
+  // ponytail: a mouse press on the input is a tap (no drag-scrub, no right-click menu on a field);
+  // forward it to egui as a press if mice on touch screens matter.
   document.addEventListener("pointerdown", (e) => {
-    if (e.pointerType !== "touch") tapped = onInput(e) ? at(e.clientX, e.clientY) : null;
+    if (e.pointerType !== "touch") tapped = onInput(e) && e.button === 0 ? at(e.clientX, e.clientY) : null;
   }, opts);
   document.addEventListener("focusin", (e) => {
     if (!onInput(e) || !tapped) return;

@@ -57,8 +57,14 @@ touchEvent("touchstart", input, finger(1, 110, 220));
 assert.equal(touchEvent("touchend", input, finger(1, 112, 221)), false, "the tap stays the input's: it focuses it");
 assert.deepEqual(taps, [], "not before the input has the focus");
 fire("focusin", input);
-assert.deepEqual(taps.splice(0), [[102, 201]]);
+assert.deepEqual(taps.splice(0), [[100, 200]], "where the finger came down: on the field");
 assert.deepEqual(touches, []);
+// A tap that drifted (within the slop) off the field's edge still taps where it came down.
+touchEvent("touchstart", input, finger(1, 110, 220));
+touchEvent("touchmove", input, finger(1, 110, 228));
+touchEvent("touchend", input, finger(1, 110, 228));
+fire("focusin", input);
+assert.deepEqual(taps.splice(0), [[100, 200]]);
 // eframe focusing its input itself is no tap.
 fire("focusin", input);
 assert.deepEqual(taps, []);
@@ -117,9 +123,14 @@ fire("focusin", input);
 assert.deepEqual([taps, touches], [[], []]);
 
 // A mouse or trackpad (an iPad's) focuses the input on the press.
-fire("pointerdown", input, { pointerType: "mouse", clientX: 30, clientY: 40 });
+fire("pointerdown", input, { pointerType: "mouse", button: 0, clientX: 30, clientY: 40 });
 fire("focusin", input);
 assert.deepEqual(taps.splice(0), [[20, 20]]);
+// Its right click is no tap, and opens no text field menu.
+fire("pointerdown", input, { pointerType: "mouse", button: 2, clientX: 30, clientY: 40 });
+assert.equal(fire("contextmenu", input), true);
+fire("focusin", input);
+assert.deepEqual([taps, touches], [[], []]);
 
 // The input lies over the fields, clipped to them; with none it shrinks back.
 host.touchCover(new Float32Array([10, 20, 100, 18, 40, 60, 50, 20]));
