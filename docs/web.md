@@ -400,6 +400,16 @@ these differences:
   starts as `?noworkers`: viewer frames, Render Queue renders and analyses run on the page's
   thread. The Telegram sticker export runs on the page either way. `effectcraft.info().load.workers`
   says which. `audio-worklet.js` falls back to a `ScriptProcessorNode` on its own.
+- **A loading bar with its stages**, so a slow or stuck start shows on a device without a console
+  (iOS): page (navigation start to the page script: the HTML and `webxdc.js`), js (the app's
+  JavaScript glue), download (bytes so far, of the `.gz`'s size that `package.sh` writes into the
+  page, as a messenger may send no `Content-Length`), compile, instantiate, workers (the worker
+  probe, up to 10 s), then from the Rust side (`loadStage` in `js/host.js`): storage (reading
+  browser storage), gpu (WebGPU adapter and device), restore (settings and the document), ui,
+  first frame (fonts, layout). The running stage counts up; the finished ones and their times stay
+  on screen as selectable text, also on an error. The overlay goes once the first frame is drawn.
+  `effectcraft.info().load` has `stages: [{name, ms, detail?}]`, `log` (that text), `stage`,
+  `workerMs`, and `wasmMs` / `readyMs` measured from navigation start.
 - **No saving to disk.** The project lives in the app's browser storage (it comes back when the
   app is reopened). The host hides the commands a messenger can't run (`Hooks::hidden_commands`):
   Save, Save As and its variants, Increment and Save, Revert, Reveal in Finder, Watch Folder,
