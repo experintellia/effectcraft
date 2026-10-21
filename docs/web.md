@@ -377,6 +377,25 @@ cache-first (the cached responses keep the server's COOP/COEP headers, so the pa
 cross-origin isolated offline), and drops older caches when a new build activates. After the
 first visit the app loads without a network.
 
+### Typing on touch screens
+
+eframe takes typing through a hidden `<input>` beside the canvas, which it focuses from script a
+frame after the tap that focused a text field. iOS opens the on-screen keyboard only for a field
+focused by the user's own tap, so on iOS the keyboard stayed down. On touch screens (a coarse
+pointer) the page lays that input, transparent, over every text field and every value a tap types
+into (hot text, number fields) that no window, menu or popup covers, clipped to them
+(`touchCover` in `js/host.js`, placed by `src/touch.rs` from `effectcraft_ui_egui::touch` at the
+end of each pass). A tap on a field then focuses the input natively and opens the keyboard; once
+it has the focus the page hands egui the tap, and the keyboard stays up for the two passes hot text
+takes to turn into its field. A drag or a long press that begins on the input goes to egui as a
+finger drag or a context-menu click, with the browser's text selection and menus prevented. While a
+field takes typing the input shrinks back to eframe's 1px field at the text cursor. The pages also
+turn off double-tap zoom (`touch-action: manipulation`) and let the keyboard resize the page
+(`interactive-widget=resizes-content`, Android), and the page undoes the pan iOS leaves behind once
+the keyboard hides. Fields that open with a double tap (renaming in the Project and Timeline
+panels) or by themselves (a dialog's first field), and typing on a text layer in the viewer, still
+rely on eframe's own iOS fix: a tap on the field once it has the focus opens the keyboard.
+
 ## The webxdc build (this fork)
 
 `packaging/webxdc/package.sh` builds `dist/release/effectcraft-<version>.xdc`, a
@@ -503,6 +522,13 @@ with a fake IndexedDB: a put or delete resolves only once its transaction has co
 whose transaction aborts after its request succeeded (or whose request fails or throws) rejects
 and leaves the stored entry as it was, so the flush keeps it for a retry (#1242)
 (`node apps/effectcraft-web/tests/storage.mjs`).
+
+`apps/effectcraft-web/tests/touch.mjs` checks the touch-screen typing glue of `js/host.js` (above)
+with a fake DOM: a tap on eframe's input reaches egui once the input has the focus, a drag, a long
+press or Android's `contextmenu` that began on it goes to egui with the browser's handling
+prevented, touches on the canvas stay eframe's, and the input is laid over (and clipped to) the
+fields (`node apps/effectcraft-web/tests/touch.mjs`). `crates/ui-egui/tests/ui_touch_typing.rs`
+checks the egui side.
 
 It also checks the M13.10 paths: viewer frames rendered in frame workers while scrubbing with the
 CPU renderer (project synced as diffs, event-loop gaps under 400 ms), a `wait: true` render that
