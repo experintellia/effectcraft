@@ -22,10 +22,12 @@ mkdir -p "$SITE"
 cp -R "$WEB/." "$SITE/"
 # The web build's offline install and page; the messenger provides webxdc.js.
 rm -f "$SITE/sw.js" "$SITE/manifest.webmanifest" "$SITE/favicon.svg" "$SITE"/icon-*.png "$SITE/index.html"
-cp "$ROOT/apps/effectcraft-web/webxdc.html" "$SITE/index.html"
 cp "$ROOT/assets/app-icon/effectcraft-macos-512.png" "$SITE/icon.png"
 # Stored gzipped (zip -n .gz below), gunzipped by the page: Delta Chat inflates zip entries slowly.
 gzip -9 -n -f "$SITE/effectcraft_web_bg.wasm"
+# The page's loading bar needs the download's size: a messenger may send no Content-Length.
+GZ_BYTES=$(( $(wc -c < "$SITE/effectcraft_web_bg.wasm.gz") ))
+sed "s/@WASM_GZ_BYTES@/$GZ_BYTES/" "$ROOT/apps/effectcraft-web/webxdc.html" > "$SITE/index.html"
 cat > "$SITE/manifest.toml" <<TOML
 name = "EffectCraft"
 source_code_url = "https://github.com/experintellia/effectcraft"
