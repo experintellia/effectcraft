@@ -131,6 +131,12 @@ impl eframe::App for WebApp {
         if !self.shown {
             self.shown = true;
             load_stage("ready");
+            // The webxdc page's stage log (`effectcraftLoad.log`), for Help ▸ About.
+            let load = web_sys::window().and_then(|w| js_sys::Reflect::get(&w, &JsValue::from_str("effectcraftLoad")).ok());
+            let field = |k: &str| load.as_ref().and_then(|l| js_sys::Reflect::get(l, &JsValue::from_str(k)).ok());
+            if let (Some(log), Some(ms)) = (field("log").and_then(|v| v.as_string()), field("readyMs").and_then(|v| v.as_f64())) {
+                self.app.hooks.about_note = Some(format!("Startup took {:.1} s: {log}", ms / 1000.0));
+            }
             if let Some(el) = web_sys::window().and_then(|w| w.document()).and_then(|d| d.get_element_by_id("loading")) {
                 el.remove();
             }
