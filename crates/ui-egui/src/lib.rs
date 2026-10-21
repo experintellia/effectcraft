@@ -174,6 +174,8 @@ pub struct Hooks {
     /// Commands the host can't run (in a messenger: saving to disk, scripts, watch folders,
     /// revealing files). Menus leave them out and [`menus::invoke`] refuses them.
     pub hidden_commands: &'static [&'static str],
+    /// Shown at the foot of Help ▸ About (the web build: how long startup took, by stage).
+    pub about_note: Option<String>,
 }
 
 /// The commands a webxdc host hides ([`Hooks::hidden_commands`]): in a messenger's sandbox the

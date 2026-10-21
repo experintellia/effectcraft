@@ -378,6 +378,11 @@ fn about_main(app: &mut EffectcraftApp, ui: &mut egui::Ui, t: &Tokens, cmd: &mut
         }
         ui.add_space(4.0);
     }
+    // Selectable, to copy into a bug report.
+    if let Some(note) = &app.hooks.about_note {
+        ui.add_space(6.0);
+        ui.add(egui::Label::new(egui::RichText::new(note).small().color(t.text_dim)).wrap().selectable(true));
+    }
 }
 
 fn comp_settings(app: &mut EffectcraftApp, ctx: &egui::Context, t: &Tokens, existing: bool) {
@@ -698,6 +703,17 @@ mod tests {
         });
         out.textures_delta.clear();
         out
+    }
+
+    /// Help ▸ About shows the host's note (the web build: the startup timings) only when it has one.
+    #[test]
+    fn about_shows_the_hosts_note() {
+        let (mut app, ctx) = app();
+        app.dialog = Some(Dialog::About);
+        let shows = |out: &egui::FullOutput| out.shapes.iter().any(|s| matches!(&s.shape, egui::Shape::Text(t) if t.galley.text().contains("Startup took")));
+        assert!(!shows(&frame_with(&mut app, &ctx, vec![])));
+        app.hooks.about_note = Some("Startup took 9.1 s: page 0.3 s · download 8.0 s".into());
+        assert!(shows(&frame_with(&mut app, &ctx, vec![])));
     }
 
     /// The IME composing `text` so far (what the platform sends as the user types pinyin).
