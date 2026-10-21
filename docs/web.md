@@ -406,6 +406,29 @@ these differences:
   scripts and ScriptUI panels, Reveal Logging File and Quit. Menus leave them out and running one
   is refused; the unsaved-changes prompt offers Don't Save and Cancel.
 
+### Open work (webxdc)
+
+Issues are off on this fork, so the open items live here.
+
+- **Graphics acceleration.** In Delta Chat desktop the page has no usable GPU (File ▸ Project
+  Settings shows "Mercury GPU Acceleration (no GPU: software)"), and the workers' own WebGPU
+  devices measured slower than their CPU, so the webxdc build renders on the CPU. The GPU
+  compositor and effects need compute shaders, which WebGL2 lacks. Ideas:
+  - **WebGL UI (`glow`), as the GridCraft fork did.** The app would start in webviews without
+    WebGPU; the UI draws through wgpu, built without its WebGL backend, so today it can't start
+    there (likely most Android and iOS messenger webviews). It would also drop wgpu, naga, the
+    GPU crate and its WGSL, about 3.2 MB of 63.5 MB raw, roughly 0.7–0.8 MB of the 15 MB
+    `.xdc`. The catch: ui-egui gets `cc.wgpu_render_state` today, and would need to work with a
+    glow context, or none, behind a feature.
+  - **GPU help in a messenger:**
+    - WebGL2 fragment-shader versions of the hot effects (Glow, blurs) and of the compositor; or
+    - when the page has WebGPU, viewer frames rendered on the page's device, without the
+      workers' readback round trips.
+
+    Measure in Delta Chat desktop, Android and iOS before choosing.
+  - **Diagnostics:** an Info panel line saying whether workers render on a GPU or the CPU, and
+    which adapter. Today only `effectcraft.info()` says, which needs devtools.
+
 ## `window.effectcraft`: the agent / test API
 
 The control channel of the desktop app (`docs/control-protocol.md`) as promises. Results resolve

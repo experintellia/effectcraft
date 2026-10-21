@@ -60,7 +60,7 @@ Screenshots of EffectCraft itself, rendered headlessly, showing only procedurall
 
 - UI icons drawn in code: `crates/ui-egui/src/icons.rs`, including the original filled favorite star (2026-10-11, EffectCraft contributors).
 - Procedural demo content (solids, shapes, gradients, text animations): `crates/engine/src/demo.rs`.
-- Built-in project templates (Lower Third, Title Card, Logo Reveal, Kinetic Type, Social Square, Vertical Story,
+- Built-in project templates (Lower Third, Title Card, Logo Reveal, Kinetic Type, Social Square, Animated Sticker, Vertical Story,
   Slideshow, 3D Text Orbit) built from engine commands, and their thumbnails rendered by our own renderer:
   `crates/engine/src/templates.rs`.
 - Text animator presets (Typewriter, Fade Up Characters, Bounce In Words, Tracking In, Scramble, Blur In, Jitter,
