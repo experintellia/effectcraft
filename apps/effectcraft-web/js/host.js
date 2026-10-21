@@ -686,6 +686,190 @@ export function showDeviceLost(message, kept) {
   document.body.append(box);
 }
 
+// ------------------------------------------------------------------ typing on touch screens
+
+// iOS opens the on-screen keyboard only for a text field focused by the user's own tap, and eframe
+// focuses its hidden text input (the `<input>` it puts right after the canvas) a frame after the
+// tap, from script: the keyboard stays down. So on touch screens the input lies over the text
+// fields and the values a tap types into (src/touch.rs: `touchCover`), where a tap focuses it
+// natively; once it has the focus the tap goes to egui (`onTap`). A touch on the input that turns
+// into a drag or a long press goes to egui too (`onTouch`), and the browser's own handling of it
+// (text selection, its menus, the focus) is prevented.
+
+// How far (CSS px) a tap may move: farther, it's a drag.
+const TAP_SLOP = 10;
+let touchCanvas = null;
+// `path()` clips (not in Android WebView before Chrome 88): without them the input would cover
+// everything between the fields, so it covers none.
+let touchClips = false;
+// What `touchCover` last laid out.
+let covered = "";
+
+const touchInput = () => {
+  const el = touchCanvas && touchCanvas.nextElementSibling;
+  return el && el.tagName === "INPUT" ? el : null;
+};
+
+/// On a touch screen (a coarse pointer), listen for touches on eframe's text input over `canvas`:
+/// `onTap(x, y)` once a tap on it gave it the focus, `onTouch(kind, id, x, y)` for a drag
+/// ("start", "move", "end", "cancel") or a long press ("long", then "gone") that began on it.
+/// Positions are CSS px from the canvas's top left; a long press is `holdMs` held still. Returns
+/// whether it listens.
+export function touchInstall(canvas, holdMs, onTap, onTouch) {
+  if (!self.matchMedia || !self.matchMedia("(pointer: coarse)").matches) return false;
+  touchCanvas = canvas;
+  touchClips = !!(self.CSS && CSS.supports && CSS.supports("clip-path", "path('M0 0')"));
+  const at = (x, y) => {
+    const r = canvas.getBoundingClientRect();
+    return [x - r.left, y - r.top];
+  };
+  const onInput = (e) => e.target != null && e.target === touchInput();
+  // The touch that began on the input: {id, x, y (where it is), gesture: tap | drag | long, timer}.
+  let touch = null;
+  // Where the input was tapped, until it has the focus.
+  let tapped = null;
+  const longPress = () => {
+    if (!touch || touch.gesture !== "tap") return;
+    touch.gesture = "long";
+    onTouch("long", touch.id, ...at(touch.x, touch.y));
+  };
+  const find = (e, id) => [...e.changedTouches].find((t) => t.identifier === id);
+  // Capturing, ahead of eframe's listeners on the document, and not passive, so the browser's
+  // handling can be prevented.
+  const opts = { capture: true, passive: false };
+  document.addEventListener("touchstart", (e) => {
+    tapped = null;
+    // Another finger makes a waiting tap or a drag a pinch, which eframe's own listeners handle.
+    if (touch && touch.gesture !== "long") {
+      clearTimeout(touch.timer);
+      if (touch.gesture === "drag") onTouch("cancel", touch.id, ...at(touch.x, touch.y));
+      touch = null;
+    }
+    const t = e.changedTouches[0];
+    if (t && onInput(e) && e.touches.length === 1) {
+      touch = { id: t.identifier, x: t.clientX, y: t.clientY, gesture: "tap", timer: setTimeout(longPress, holdMs) };
+    }
+  }, opts);
+  document.addEventListener("touchmove", (e) => {
+    const now = touch && find(e, touch.id);
+    if (!now) return;
+    if (touch.gesture === "tap") {
+      if (Math.abs(now.clientX - touch.x) <= TAP_SLOP && Math.abs(now.clientY - touch.y) <= TAP_SLOP) return;
+      clearTimeout(touch.timer);
+      touch.gesture = "drag";
+      onTouch("start", touch.id, ...at(touch.x, touch.y));
+    }
+    if (touch.gesture === "drag") {
+      onTouch("move", touch.id, ...at(now.clientX, now.clientY));
+      touch.x = now.clientX;
+      touch.y = now.clientY;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+  }, opts);
+  const end = (e) => {
+    const now = touch && find(e, touch.id);
+    if (!now) return;
+    const t = touch;
+    touch = null;
+    if (t.gesture === "tap") {
+      clearTimeout(t.timer);
+      // The browser focuses the input after this (where `focusin` reports the tap). Where the
+      // finger came down: it's on a field, where it lifts (up to TAP_SLOP away) may not be.
+      if (e.type === "touchend") tapped = at(t.x, t.y);
+      return;
+    }
+    if (t.gesture === "drag") onTouch(e.type === "touchcancel" ? "cancel" : "end", t.id, ...at(now.clientX, now.clientY));
+    else onTouch("gone", t.id, ...at(now.clientX, now.clientY));
+    // No focus (and keyboard) or text menu after it, and eframe's own listeners skip it.
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  document.addEventListener("touchend", end, opts);
+  document.addEventListener("touchcancel", end, opts);
+  // Android's own long press comes sooner than egui's (a `contextmenu`, then the text field's
+  // popup): it makes a waiting tap a long press at once, without the popup.
+  document.addEventListener("contextmenu", (e) => {
+    if (!onInput(e)) return;
+    // A mouse's right click on it: no text field menu (eframe blocks its own on the canvas only).
+    if (touch) {
+      clearTimeout(touch.timer);
+      longPress();
+    }
+    e.preventDefault();
+    e.stopPropagation();
+  }, opts);
+  // eframe's `pointerup` on the document would release a forwarded drag ahead of its `touchend`
+  // (with moves still queued): the `touchend` alone releases it.
+  document.addEventListener("pointerup", (e) => {
+    if (e.pointerType === "touch" && touch && touch.gesture === "drag") e.stopPropagation();
+  }, opts);
+  // A mouse or trackpad on a touch screen (an iPad's) fires no touch events, and focuses the input
+  // on the press itself. Only its primary button taps: a right click isn't a tap.
+  // ponytail: a mouse press on the input is a tap (no drag-scrub, no right-click menu on a field);
+  // forward it to egui as a press if mice on touch screens matter.
+  document.addEventListener("pointerdown", (e) => {
+    if (e.pointerType !== "touch") tapped = onInput(e) && e.button === 0 ? at(e.clientX, e.clientY) : null;
+  }, opts);
+  document.addEventListener("focusin", (e) => {
+    if (!onInput(e) || !tapped) return;
+    const [x, y] = tapped;
+    tapped = null;
+    onTap(x, y);
+  }, true);
+  // iOS pans the page to keep a natively focused input above the keyboard, and doesn't always pan
+  // back once the keyboard hides: the canvas stays pushed up with the page background below it.
+  // The page itself never scrolls, so any pan left once no input has the focus is undone (not on
+  // `focusout`: eframe blurs and refocuses its input on every tap while typing).
+  const unpan = () => {
+    const typing = document.activeElement && document.activeElement.tagName === "INPUT";
+    if (!typing && (self.scrollX || self.scrollY)) self.scrollTo(0, 0);
+  };
+  self.addEventListener("scroll", unpan);
+  // The keyboard hiding resizes the visual viewport, also when the pan itself fired no scroll.
+  self.visualViewport?.addEventListener("resize", unpan);
+  self.visualViewport?.addEventListener("scroll", unpan);
+  return true;
+}
+
+/// Lay eframe's text input over `rects` ([x, y, width, height, …] in CSS px from the canvas's top
+/// left), clipped to them so that a tap between them still reaches the canvas; with none, shrink it
+/// back to the 1px field eframe moves to the text cursor.
+export function touchCover(rects) {
+  const input = touchInput();
+  if (!input) return;
+  const n = touchClips ? Math.floor(rects.length / 4) : 0;
+  let [l, t, r, b] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < n; i++) {
+    l = Math.min(l, rects[4 * i]);
+    t = Math.min(t, rects[4 * i + 1]);
+    r = Math.max(r, rects[4 * i] + rects[4 * i + 2]);
+    b = Math.max(b, rects[4 * i + 1] + rects[4 * i + 3]);
+  }
+  let path = "";
+  for (let i = 0; i < n; i++) {
+    const [x, y, w, h] = [rects[4 * i] - l, rects[4 * i + 1] - t, rects[4 * i + 2], rects[4 * i + 3]];
+    path += `M${x} ${y}h${w}v${h}h${-w}z`;
+  }
+  const key = n ? `${l} ${t} ${path}` : "";
+  if (key === covered) return;
+  covered = key;
+  const s = input.style;
+  if (!n) {
+    s.width = "1px";
+    s.height = "1px";
+    s.removeProperty("clip-path");
+    return;
+  }
+  // No iOS callout on a long press. (Not `user-select: none`: iOS then types nothing into it.)
+  s.setProperty("-webkit-touch-callout", "none");
+  s.left = `${touchCanvas.offsetLeft + l}px`;
+  s.top = `${touchCanvas.offsetTop + t}px`;
+  s.width = `${r - l}px`;
+  s.height = `${b - t}px`;
+  s.setProperty("clip-path", `path('${path}')`);
+}
+
 // ------------------------------------------------------------------ loading
 
 // A startup stage reached on the Rust side (src/app.rs: "storage", "gpu", …): the webxdc page

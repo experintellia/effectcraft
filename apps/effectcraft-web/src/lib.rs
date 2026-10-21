@@ -17,6 +17,7 @@
 //! | Render Queue / analysis threads | Web Workers running their own engine instance ([`worker`]) |
 //! | cpal audio output | Web Audio: an AudioWorklet fed from the preview mixdown ([`audio`]) |
 //! | TCP control channel / MCP | `window.effectcraft` JavaScript API ([`api`]) |
+//! | (keyboard, mouse) | touch screens: a tap on a text field opens the on-screen keyboard, also on iOS ([`touch`]) |
 //!
 //! [`store`] is portable (unit-tested natively); everything else is `wasm32`-only.
 
@@ -42,6 +43,8 @@ pub mod frames;
 pub mod persist;
 #[cfg(target_arch = "wasm32")]
 pub mod storage;
+#[cfg(target_arch = "wasm32")]
+pub mod touch;
 #[cfg(target_arch = "wasm32")]
 pub mod worker;
 
