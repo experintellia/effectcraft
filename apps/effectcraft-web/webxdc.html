@@ -45,7 +45,7 @@
     (() => {
       const LABELS = {
         js: "Loading the app script", download: "Downloading the app", compile: "Compiling the app",
-        instantiate: "Starting the app", workers: "Checking Web Workers (gives up after 10 s)",
+        instantiate: "Starting the app", workers: "Checking Web Workers",
         storage: "Reading browser storage", gpu: "Requesting the GPU (WebGPU adapter and device)",
         restore: "Restoring the document", ui: "Setting up the interface",
         "first frame": "Drawing the first frame (fonts, layout)", ready: "Ready",
@@ -98,10 +98,20 @@
         $("status").className = "err";
         $("status").textContent = "EffectCraft failed to start:\n" + msg;
       };
+      // The message and the stack: Safari's `stack` has only the frames.
+      window.effectcraftStage.describe = (e) => (e == null ? "unknown error" : String(e) + (e.stack ? "\n" + e.stack : ""));
+      // What the module's own try/catch can't see (its script failing to load or parse, a wasm trap
+      // in the start): reported once, while starting, and not over the module's own report.
+      window.effectcraftStage.failed = (e) => {
+        if (cur && !load.error) window.effectcraftStage.fail(window.effectcraftStage.describe(e));
+      };
+      addEventListener("error", (e) => window.effectcraftStage.failed(e.error ?? e.message));
+      addEventListener("unhandledrejection", (e) => window.effectcraftStage.failed(e.reason));
       show();
     })();
   </script>
-  <script type="module">
+  <!-- A failed fetch of the module or its imports fires `error` here, not on the window. -->
+  <script type="module" onerror="effectcraftStage.failed('the app script (effectcraft_web.js) did not load')">
     import init, * as ec from "./effectcraft_web.js";
     const stage = window.effectcraftStage;
     // The agent / test API (docs/web.md), as on the web build.
@@ -160,7 +170,7 @@
       // Stages from here on come from the Rust side, up to "ready" with the first frame.
       await ec.start("effectcraft_canvas");
     } catch (e) {
-      stage.fail(String(e && e.stack || e));
+      stage.fail(stage.describe(e));
       throw e;
     }
   </script>
