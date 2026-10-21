@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use effectcraft_engine::Session;
 
-use crate::{api, audio, browse, diskcache, files, frames, persist, storage, worker};
+use crate::{api, audio, browse, diskcache, files, frames, persist, storage, touch, worker};
 use effectcraft_ui_egui::EffectcraftApp;
 use serde_json::json;
 use wasm_bindgen::prelude::*;
@@ -83,10 +83,13 @@ pub struct WebApp {
     pub app: EffectcraftApp,
     /// Keep the session snapshot (off with `?empty`).
     pub persist: bool,
+    /// Touches on eframe's text input, for egui ([`touch`]).
+    touches: touch::Touches,
 }
 
 impl eframe::App for WebApp {
     fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {
+        raw_input.events.extend(self.touches.take());
         self.app.raw_input_hook(ctx, raw_input);
     }
 
@@ -212,12 +215,14 @@ pub async fn start(canvas_id: String) -> Result<(), JsValue> {
     diskcache::init();
     storage::refresh();
     let runner = eframe::WebRunner::new();
+    let touch_canvas = canvas.clone();
     runner
         .start(
             canvas,
             eframe::WebOptions::default(),
             Box::new(move |cc| {
                 CTX.with(|c| *c.borrow_mut() = Some(cc.egui_ctx.clone()));
+                let touches = touch::install(&cc.egui_ctx, &touch_canvas);
                 // The page owns this shared presentation device; worker devices retain their
                 // separate owned-device handlers. No browser error-scope future is blocked on.
                 let gpu_failures = effectcraft_ui_egui::gpu_failure::GpuFailureBridge::new(&cc.egui_ctx);
@@ -270,7 +275,7 @@ pub async fn start(canvas_id: String) -> Result<(), JsValue> {
                 app = app.with_control(rx);
                 let backend = cc.wgpu_render_state.as_ref().map(|rs| format!("{:?}", rs.adapter.get_info().backend));
                 api::set_info("backend", json!(backend));
-                Ok(Box::new(WebApp { app, persist: !empty }))
+                Ok(Box::new(WebApp { app, persist: !empty, touches }))
             }),
         )
         .await?;

@@ -30,6 +30,7 @@ mod pointer_wrap;
 pub mod prefs_live;
 pub mod state;
 pub mod theme;
+pub mod touch;
 pub mod widgets;
 mod workspace_state;
 
