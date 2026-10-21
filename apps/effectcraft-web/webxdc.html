@@ -48,7 +48,7 @@
     (() => {
       const LABELS = {
         js: "Loading the app script", download: "Downloading the app", compile: "Compiling the app",
-        instantiate: "Starting the app", workers: "Checking Web Workers (gives up after 10 s)",
+        instantiate: "Starting the app", workers: "Checking Web Workers",
         storage: "Reading browser storage", gpu: "Requesting the GPU (WebGPU adapter and device)",
         restore: "Restoring the document", ui: "Setting up the interface",
         "first frame": "Drawing the first frame (fonts, layout)", ready: "Ready",
@@ -101,10 +101,28 @@
         $("status").className = "err";
         $("status").textContent = "EffectCraft failed to start:\n" + msg;
       };
+      // The message and the stack: Safari's `stack` has only the frames (Chromium's starts with the
+      // message).
+      window.effectcraftStage.describe = (e) => {
+        if (e == null) return "unknown error";
+        const msg = String(e);
+        return !e.stack ? msg : e.stack.startsWith(msg) ? e.stack : msg + "\n" + e.stack;
+      };
+      // What the module's own try/catch can't see (its script failing to load or parse, a wasm trap
+      // in the start): reported once, while starting, and not over the module's own report.
+      window.effectcraftStage.failed = (e) => {
+        if (cur && !load.error) window.effectcraftStage.fail(window.effectcraftStage.describe(e));
+      };
+      addEventListener("error", (e) => {
+        const where = e.filename ? `\n(${e.filename}:${e.lineno})` : "";
+        window.effectcraftStage.failed(e.error ? window.effectcraftStage.describe(e.error) + where : (e.message ?? null));
+      });
+      addEventListener("unhandledrejection", (e) => window.effectcraftStage.failed(e.reason));
       show();
     })();
   </script>
-  <script type="module">
+  <!-- A failed fetch of the module or its imports fires `error` here, not on the window. -->
+  <script type="module" onerror="effectcraftStage.failed('the app script (effectcraft_web.js or one of its imports) did not load')">
     import init, * as ec from "./effectcraft_web.js";
     const stage = window.effectcraftStage;
     // The agent / test API (docs/web.md), as on the web build.
@@ -126,7 +144,7 @@
         const w = new Worker("worker.js", { type: "module" });
         const done = (ok) => { window.effectcraftLoad.workerMs ??= Math.round(performance.now()); w.terminate(); res(ok); };
         w.onmessage = () => done(true);
-        w.onerror = () => done(false);
+        w.onerror = (e) => { e.preventDefault(); done(false); };
         w.postMessage({ type: "ping" });
         setTimeout(() => done(false), 10000);
       } catch { res(false); }
@@ -163,7 +181,7 @@
       // Stages from here on come from the Rust side, up to "ready" with the first frame.
       await ec.start("effectcraft_canvas");
     } catch (e) {
-      stage.fail(String(e && e.stack || e));
+      stage.fail(stage.describe(e));
       throw e;
     }
   </script>
