@@ -316,18 +316,20 @@ fn social_square(s: &mut Session) -> Result<()> {
 }
 
 /// Only what Telegram allows in animated stickers (`.tgs`): shape layers with fills, transform
-/// keyframes; no solids, effects, stars or text. It loops: the last frame matches the first.
+/// keyframes; no solids, effects, stars or text. It loops: the keys at the out point (3 s, not
+/// rendered) match those at 0 s, so the last frame leads into the first.
 fn animated_sticker(s: &mut Session) -> Result<()> {
     comp(s, "Animated Sticker", 512, 512, 3.0, "#20242C")?;
     let shadow = shape(s, "Shadow", "ellipse", [180.0, 36.0], "#000000", [256.0, 446.0])?;
     set(s, shadow, "transform/opacity", op(35.0));
     let ball = shape(s, "Ball", "ellipse", [160.0, 160.0], "#FFC23D", [256.0, 356.0])?;
     // Three bounces: the ball lands (squashed, its shadow wide) on each second and tops out on
-    // each half second.
+    // each half second. Squashed to 84 % about its centre, it lands lower so its bottom stays on
+    // the ground (y 436).
     let (mut pos, mut scale, mut wide) = (vec![], vec![], vec![]);
     for k in 0..=3 {
         let t = f64::from(k);
-        pos.push((t, p3(256.0, 356.0)));
+        pos.push((t, p3(256.0, 369.0)));
         scale.push((t, KV::Vec3([118.0, 84.0, 100.0])));
         wide.push((t, sc(100.0)));
         if k < 3 {
@@ -1000,7 +1002,8 @@ mod tests {
     }
 
     /// The sticker template passes File ▸ Export ▸ Telegram Sticker…'s checks as it is, in both
-    /// formats, and nothing in it is dropped from the `.tgs`.
+    /// formats, and nothing in it is dropped from the `.tgs`. (The `.tgs` check exports it and
+    /// weighs the file; the `.webm` one checks the canvas and length only, without encoding.)
     #[test]
     fn animated_sticker_passes_the_telegram_checks() {
         let mut s = Session::default();

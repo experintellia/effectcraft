@@ -423,11 +423,11 @@ these differences:
 - **A loading bar with its stages**, so a slow or stuck start shows on a device without a console
   (iOS): page (navigation start to the page script: the HTML and `webxdc.js`), js (the app's
   JavaScript glue), download (bytes so far, of the `.gz`'s size that `package.sh` writes into the
-  page, as a messenger may send no `Content-Length`), compile, instantiate, workers (the worker
-  probe, up to 10 s), then from the Rust side (`loadStage` in `js/host.js`): storage (reading
+  page, as a messenger may send no `Content-Length`), compile, instantiate, workers (what's left of the
+  worker probe, which starts with the download and gives up after 10 s), then from the Rust side (`loadStage` in `js/host.js`): storage (reading
   browser storage), gpu (WebGPU adapter and device), restore (settings and the document), ui,
   first frame (fonts, layout). The running stage counts up; the finished ones and their times stay
-  on screen as selectable text, also on an error. The overlay goes once the first frame is drawn.
+  on screen as selectable text, also on an error (the message with its stack; also when the app's script doesn't load). The overlay goes once the first frame is drawn.
   `effectcraft.info().load` has `stages: [{name, ms, detail?}]`, `log` (that text), `stage`,
   `workerMs`, and `wasmMs` / `readyMs` measured from navigation start.
 - **No saving to disk.** The project lives in the app's browser storage (it comes back when the
@@ -440,9 +440,11 @@ these differences:
 
 Issues are off on this fork, so the open items live here.
 
-- **Graphics acceleration.** In Delta Chat desktop the page has no usable GPU (File ▸ Project
-  Settings shows "Mercury GPU Acceleration (no GPU: software)"), and the workers' own WebGPU
-  devices measured slower than their CPU, so the webxdc build renders on the CPU. The GPU
+- **Graphics acceleration.** In Delta Chat desktop on a GPU Chromium blocklists (ARM GPUs on
+  Linux) the page has no usable GPU (File ▸ Project Settings shows "Mercury GPU Acceleration
+  (no GPU: software)"), and the workers' own WebGPU devices, Chromium's software fallback,
+  measured slower than their CPU. Starting Delta Chat with WebGPU forced on gives the real GPU.
+  The GPU
   compositor and effects need compute shaders, which WebGL2 lacks. Ideas:
   - **WebGL UI (`glow`), as the GridCraft fork did.** The app would start in webviews without
     WebGPU; the UI draws through wgpu, built without its WebGL backend, so today it can't start
