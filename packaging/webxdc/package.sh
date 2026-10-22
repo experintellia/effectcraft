@@ -33,6 +33,9 @@ name = "EffectCraft"
 source_code_url = "https://github.com/experintellia/effectcraft"
 TOML
 copy_docs "$SITE"
+# The wasm embeds the OFL fonts (Inter, JetBrains Mono, Noto Serif): their licences, NOTICE and
+# the asset attributions go with every copy.
+cp "$ROOT/NOTICE" "$ROOT/ATTRIBUTION.md" "$ROOT"/assets/fonts/OFL-*.txt "$SITE/"
 OUT="$DIST/effectcraft-$VERSION.xdc"
 rm -f "$OUT"
 # No -9: in zip 3.0 it overrides -n, which would deflate the .gz again.

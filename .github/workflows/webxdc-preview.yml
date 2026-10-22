@@ -48,7 +48,7 @@ jobs:
 
       - name: Upload preview .xdc artifact
         id: upload_xdc
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: preview-xdc
           path: dist-xdc/effectcraft.xdc
@@ -57,7 +57,7 @@ jobs:
       - name: Post sticky PR comment with preview link
         # A pull request from another fork gets a read-only token: no comment, the artifact stays.
         if: github.event.pull_request.head.repo.full_name == github.repository
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@773744901bac0e8cbb5a0dc842800d45e9b2b405 # v2.9.4
         with:
           header: xdc-preview
           message: |
