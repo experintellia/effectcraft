@@ -82,13 +82,35 @@ fn mime(name: &str) -> &'static str {
     }
 }
 
-/// Offer `data` as a download named `name`.
+/// Offer `data` as a download named `name`; in a messenger (webxdc), send it to the chat instead:
+/// its webview may not save `<a download>` files anywhere.
 pub fn download(name: &str, data: &[u8]) -> Result<(), JsValue> {
-    let doc = web_sys::window().and_then(|w| w.document()).ok_or("no document")?;
+    let window = web_sys::window().ok_or("no window")?;
+    let doc = window.document().ok_or("no document")?;
     let parts = js_sys::Array::of1(&js_sys::Uint8Array::from(data));
     let bag = web_sys::BlobPropertyBag::new();
     bag.set_type(mime(name));
     let blob = web_sys::Blob::new_with_u8_array_sequence_and_options(&parts, &bag)?;
+    let webxdc = js_sys::Reflect::get(&window, &"webxdc".into())?;
+    let send = js_sys::Reflect::get(&webxdc, &"sendToChat".into()).unwrap_or(JsValue::UNDEFINED);
+    if let Some(send) = send.dyn_ref::<js_sys::Function>() {
+        let file = js_sys::Object::new();
+        js_sys::Reflect::set(&file, &"name".into(), &name.into())?;
+        js_sys::Reflect::set(&file, &"blob".into(), &blob)?;
+        let msg = js_sys::Object::new();
+        js_sys::Reflect::set(&msg, &"file".into(), &file)?;
+        let sent = send.call1(&webxdc, &msg)?;
+        // The messenger lets the user pick the chat; a refusal (cancelled, too big) only logs.
+        if let Ok(p) = sent.dyn_into::<js_sys::Promise>() {
+            let name = name.to_string();
+            wasm_bindgen_futures::spawn_local(async move {
+                if let Err(e) = wasm_bindgen_futures::JsFuture::from(p).await {
+                    log::warn!("{name}: not sent to the chat: {e:?}");
+                }
+            });
+        }
+        return Ok(());
+    }
     let url = web_sys::Url::create_object_url_with_blob(&blob)?;
     let a: web_sys::HtmlAnchorElement = doc.create_element("a")?.dyn_into()?;
     a.set_href(&url);

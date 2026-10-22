@@ -192,6 +192,8 @@ pub const WEBXDC_HIDDEN: &[&str] = &[
     "file.incrementAndSave",
     "file.revert",
     "file.revealInFinder",
+    "layer.revealInFinder",
+    "edit.editOriginal",
     "file.watchFolder",
     "file.installScript",
     "file.installScriptUIPanel",
