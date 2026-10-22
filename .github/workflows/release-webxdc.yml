@@ -1,6 +1,6 @@
 # Builds the webxdc app (packaging/webxdc/package.sh) and attaches it to a GitHub Release as
-# `effectcraft.xdc`. A pushed `v*` tag releases under that tag; a manual run releases under
-# `v<Cargo.toml version>`. An existing release gets its effectcraft.xdc replaced.
+# `effectcraft.xdc`. A pushed `v*` tag releases under that tag; a manual run releases under the
+# newest version in CHANGELOG.md. An existing release gets its effectcraft.xdc replaced.
 name: Release webxdc
 
 on:
@@ -54,7 +54,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [ "$GITHUB_REF_TYPE" = tag ]; then TAG="$GITHUB_REF_NAME"; else TAG="v$VERSION"; fi
+          # A manual run releases the newest CHANGELOG.md version (the fork's, not Cargo.toml's).
+          if [ "$GITHUB_REF_TYPE" = tag ]; then TAG="$GITHUB_REF_NAME"; else TAG="$(awk '/^## v/{print $2; exit}' CHANGELOG.md)"; fi
+          [ -n "$TAG" ] || { echo "no version in CHANGELOG.md" >&2; exit 1; }
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" effectcraft.xdc --clobber
           else

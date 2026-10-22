@@ -443,15 +443,15 @@ Issues are off on this fork, so the open items live here.
 - **Graphics acceleration.** In Delta Chat desktop on a GPU Chromium blocklists (ARM GPUs on
   Linux) the page has no usable GPU (File ▸ Project Settings shows "Mercury GPU Acceleration
   (no GPU: software)"), and the workers' own WebGPU devices, Chromium's software fallback,
-  measured slower than their CPU. Starting Delta Chat with WebGPU forced on gives the real GPU.
-  The GPU
-  compositor and effects need compute shaders, which WebGL2 lacks. Ideas:
-  - **WebGL UI (`glow`), as the GridCraft fork did.** The app would start in webviews without
-    WebGPU; the UI draws through wgpu, built without its WebGL backend, so today it can't start
-    there (likely most Android and iOS messenger webviews). It would also drop wgpu, naga, the
-    GPU crate and its WGSL, about 3.2 MB of 63.5 MB raw, roughly 0.7–0.8 MB of the 15 MB
-    `.xdc`. The catch: ui-egui gets `cc.wgpu_render_state` today, and would need to work with a
-    glow context, or none, behind a feature.
+  measured slower than their CPU. Starting Delta Chat with WebGPU forced on gives the real GPU:
+  `deltachat --enable-unsafe-webgpu --ignore-gpu-blocklist --enable-features=Vulkan
+  --use-angle=vulkan` (these flags turn off Chromium's GPU safety checks for every chat). The
+  GPU compositor and effects need compute shaders, which WebGL2 lacks. Ideas:
+  - **WebGL UI (`glow`), as the GridCraft fork did.** Without WebGPU the UI already draws on
+    WebGL2 through wgpu's GL backend (`backend: Gl`). Switching to glow would mainly drop wgpu,
+    naga, the GPU crate and its WGSL, about 3.2 MB of the raw wasm, roughly 0.7–0.8 MB of the
+    15 MB `.xdc`. The catch: ui-egui gets `cc.wgpu_render_state` today, and would need to work
+    with a glow context, or none, behind a feature.
   - **GPU help in a messenger:**
     - WebGL2 fragment-shader versions of the hot effects (Glow, blurs) and of the compositor; or
     - when the page has WebGPU, viewer frames rendered on the page's device, without the

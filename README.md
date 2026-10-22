@@ -61,6 +61,14 @@ conversation, aimed at making Telegram stickers (`.tgs` and `.webm`).
 Pull requests and issues for the fork go to `experintellia/effectcraft` (branch `webxdc`); see
 [`AGENTS.md`](AGENTS.md) §0.
 
+**Use it:** download `effectcraft.xdc` from the fork's
+[latest release](https://github.com/experintellia/effectcraft/releases/latest) and send it to a
+Delta Chat chat like any file. Open it, start from **Animated Sticker 512×512** (Home ▸ Templates,
+or File ▸ New ▸ New Project from Template…), animate, then **File ▸ Export ▸ Telegram Sticker…**:
+the `.tgs` or `.webm` is sent to a chat you pick. What changed in each release is in
+[CHANGELOG.md](CHANGELOG.md). The installers, downloads and getartcraft.com links further down
+are upstream's native EffectCraft, not this fork.
+
 `packaging/webxdc/package.sh` builds `dist/release/effectcraft-<version>.xdc` (details:
 [docs/web.md](docs/web.md#the-webxdc-build-this-fork)). Every pull request gets a preview
 `effectcraft.xdc`, and the fork's releases carry `effectcraft.xdc` instead of the native builds.
