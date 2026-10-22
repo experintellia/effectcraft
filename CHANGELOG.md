@@ -11,8 +11,10 @@ First release of EffectCraft as a webxdc app, built on upstream EffectCraft 0.14
 - An Animated Sticker 512×512 template (Home ▸ Templates, File ▸ New ▸ New Project from Template…): a looping bounce made only of what `.tgs` allows, with the ball's colour in Essential Graphics ([#5](https://github.com/experintellia/effectcraft/pull/5), [#8](https://github.com/experintellia/effectcraft/pull/8)).
 
 ### In a chat
+- Exports go to the chat: a sticker from File ▸ Export ▸ Telegram Sticker… (or a render) is sent to a chat you pick ([#10](https://github.com/experintellia/effectcraft/pull/10)).
 - Packaged as `effectcraft.xdc`, with the wasm stored pre-gzipped for Delta Chat. Frames render in Web Workers when the messenger allows them, and on the page otherwise ([#3](https://github.com/experintellia/effectcraft/pull/3)).
-- Commands a messenger can't run (saving to disk, revealing files, watch folders, scripts, Quit) are left out of the menus; the project lives in the app's storage ([#3](https://github.com/experintellia/effectcraft/pull/3)).
+- Commands a messenger can't run (saving to disk, revealing files, watch folders, scripts, Quit) are left out of the menus; the project lives in the app's storage ([#3](https://github.com/experintellia/effectcraft/pull/3), [#10](https://github.com/experintellia/effectcraft/pull/10)).
+- Opening a project (or the auto-save after a crash) keeps its footage instead of marking it all missing ([#10](https://github.com/experintellia/effectcraft/pull/10)).
 - The Home screen fits a phone's width ([#3](https://github.com/experintellia/effectcraft/pull/3)).
 
 ### Phones and tablets
