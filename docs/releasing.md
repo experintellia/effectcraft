@@ -4,7 +4,9 @@
 > native release workflows (`release.yml`, `windows-arm64.yml`, `freebsd.yml`) are removed here.
 > `.github/workflows/release-webxdc.yml` builds `packaging/webxdc/package.sh` and attaches
 > `effectcraft.xdc` to a GitHub Release: push a `v*` tag (released under that tag), or run it by
-> hand (released under `v<Cargo.toml version>`). `.github/workflows/webxdc-preview.yml` builds a
+> hand (released under `v<Cargo.toml version>`). The release notes are the tag's section of
+> [`CHANGELOG.md`](../CHANGELOG.md) (add it before tagging; tags are the fork's own versions,
+> independent of `Cargo.toml`). `.github/workflows/webxdc-preview.yml` builds a
 > preview `effectcraft.xdc` for every pull request. The rest of this page describes upstream's
 > native pipeline.
 

@@ -58,7 +58,10 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" effectcraft.xdc --clobber
           else
+            # The tag's CHANGELOG.md section (`## <tag> — date` up to the next `## `) is the notes.
+            awk -v tag="$TAG" '/^## /{on = ($2 == tag); next} on' CHANGELOG.md > notes.md
+            [ -s notes.md ] || echo "EffectCraft as a webxdc app: send effectcraft.xdc to a Delta Chat chat to make animated stickers." > notes.md
             gh release create "$TAG" effectcraft.xdc --target "$GITHUB_SHA" \
               --title "EffectCraft $TAG (webxdc)" \
-              --notes "EffectCraft as a webxdc app: send effectcraft.xdc to a Delta Chat chat to make animated stickers."
+              --notes-file notes.md
           fi
