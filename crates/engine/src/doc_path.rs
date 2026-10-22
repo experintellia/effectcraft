@@ -49,10 +49,17 @@ pub fn resolve(stored: &str, project: Option<&str>) -> Result<PathBuf, NotFollow
     let path = craft_docpath::resolve(stored, project.as_deref()).map_err(NotFollowed::Refused)?;
     // A path that is still relative would be taken from the working directory, which the
     // project does not choose.
-    if path.is_relative() {
+    if !is_absolute(&path) {
         return Err(NotFollowed::NoProjectFolder);
     }
     Ok(path)
+}
+
+/// Whether `path` names its file without the working directory. On wasm (the browser's file
+/// table, `/clip.mp4`) `Path::is_absolute` is false for every path, so a path with a root counts:
+/// otherwise opening a project there marked all its footage missing.
+fn is_absolute(path: &Path) -> bool {
+    path.is_absolute() || (cfg!(target_arch = "wasm32") && path.has_root())
 }
 
 /// The paths of `f` (its file and every frame of an image sequence) resolved against the document

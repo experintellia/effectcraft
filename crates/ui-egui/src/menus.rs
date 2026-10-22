@@ -2196,6 +2196,10 @@ pub(crate) fn submenu_at(app: &mut EffectcraftApp, ui: &mut egui::Ui, path: &[&s
 
 /// The menu bar's entry for `command` in a panel's context menu (see [`submenu_at`]).
 pub(crate) fn entry_for(app: &EffectcraftApp, ui: &mut egui::Ui, command: &str, clicked: &mut Option<(String, Value)>) {
+    // Left out where the host can't run it, as in the menu bar.
+    if app.hooks.hidden_commands.contains(&command) {
+        return;
+    }
     if let Some((_, e)) = effectcraft_engine::menus::entries().into_iter().find(|(_, e)| e.command == command)
         && menu_entry(app, ui, e).clicked()
     {
@@ -2569,6 +2573,11 @@ mod tests {
         assert!(!file(&app, "Scripts") && !file(&app, "Save As"));
         assert!(file(&app, "Import"));
         assert!(invoke(&mut app, &ctx, "file.save", json!({})).unwrap_err().contains("not available"));
+        // Every hidden id is a command (a typo would hide nothing).
+        let commands = app.session.execute("command.list", json!({})).unwrap().to_string();
+        for id in crate::WEBXDC_HIDDEN {
+            assert!(commands.contains(&format!("\"{id}\"")), "{id} is not a command");
+        }
     }
 
     /// #511: with a host's non-blocking dialogs, a command's file dialog opens without running
